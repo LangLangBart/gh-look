@@ -1,1 +1,5 @@
 .trashme
+
+# Vale style folders
+.github/vale_styles/*
+!.github/vale_styles/Vocab

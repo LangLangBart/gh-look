@@ -45,7 +45,7 @@ Flags  │ Description
        │  {CONFUSED,EYES,HEART,HOORAY,LAUGH,THUMBS_DOWN,THUMBS_UP,ROCKET}
 -o     │ sorting order of issues (default: created-desc)
        │  {author-date,committer-date,created,interactions,reactions,updated}-{desc,asc}
--R     │ Specify a repo (form: OWNER/NAME)
+-R     │ Specify a repository (form: OWNER/REPO)
 -w     │ Display the preview window upon start (default: hidden)
 
 Head  │ Description
