@@ -33,10 +33,9 @@ load_indicator() {
 # https://github.com/junegunn/fzf-git.sh/blob/main/fzf-git.sh#L104
 _fzf_git_fzf() {
 	fzf -- \
-		--ansi --layout reverse --info inline --no-multi --height=50% --min-height=20 \
-		--header '' --ellipsis '' --border horizontal --preview-window='right,50%,border-left' \
-		--margin '2%,1%,2%,1%' --height 65% \
-		--bind='ctrl-/:change-preview-window(down,50%,border-top|hidden|)' "$@"
+		--ansi --layout reverse --info inline --no-multi --height 100% \
+		--header '' --ellipsis '' --border horizontal \
+		--preview-window 'right,50%,border-left' "$@"
 }
 
 ######################################
@@ -183,8 +182,7 @@ esc      │ Exit"'
 	INITIAL_PROMPT=$(grep -q A <"$DUMMY_FILE" && printf "ALL ◉ [%s] > " "$OWNER_REPO_NAME" || printf "\e[1;92mOPEN ◉ [%s] > " "$OWNER_REPO_NAME")
 
 	ISSUE_OUTPUT=$(FZF_DEFAULT_COMMAND="(grep -q A <$DUMMY_FILE && $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME $INITIAL_QUERY \" || $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME state:open $INITIAL_QUERY \") || true" \
-		GH_FORCE_TTY=125% _fzf_git_fzf --disabled --header-lines 3 \
-		--height 100% --with-nth 2.. \
+		GH_FORCE_TTY=125% _fzf_git_fzf --disabled --header-lines 3 --with-nth 2.. \
 		--prompt "$INITIAL_PROMPT" --preview-window wrap:"$PREVIEW_WINDOW_VISIBILITY" \
 		--query "$INITIAL_QUERY" --preview "gh issue view {2} --repo $OWNER_REPO_NAME --comments" \
 		--bind "change:first+reload:sleep 0.25; (grep -q A <$DUMMY_FILE && $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME \"{q} || $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME state:open \"{q}) || true" \
@@ -274,10 +272,9 @@ esc      │ Go back to issue list"'
 
 	ISSUE_COMMENT_OUTPUT=$(FZF_DEFAULT_COMMAND="$GH_ISSUE_COMMENTS_COMMAND --raw-field owner=${OWNER_REPO_NAME%/*} --raw-field name=${OWNER_REPO_NAME#*/} --field number=$ISSUE_NUMBER" \
 		GH_FORCE_TTY=150% _fzf_git_fzf --header-lines 5 --with-nth 3.. \
-		--prompt $'\e[1;94m'" 💬 [$OWNER_REPO_NAME] > " --height 100% \
+		--prompt $'\e[1;94m'" 💬 [$OWNER_REPO_NAME] > " \
 		--preview-window "wrap:$PREVIEW_WINDOW_VISIBILITY:+4:~4" --preview "$GH_ISSUE_COMMENTS_PREVIEW" \
 		--bind "?:toggle-preview+change-preview:$HELP_ISSUE_COMMENT_SECTION" \
-		--bind "tab:toggle-preview" \
 		--bind "tab:toggle-preview+change-preview:$GH_ISSUE_COMMENTS_PREVIEW" \
 		--bind "ctrl-b:execute-silent(open https://github.com/$OWNER_REPO_NAME/issues/$ISSUE_NUMBER#issuecomment-{2})" \
 		--bind "ctrl-t:execute-silent($GH_ADD_REACTION --raw-field id={1} --raw-field emoji=$REACTION_EMOJI)+reload:$GH_ISSUE_COMMENTS_COMMAND --raw-field owner=${OWNER_REPO_NAME%/*} --raw-field name=${OWNER_REPO_NAME#*/} --field number=$ISSUE_NUMBER || true" \
