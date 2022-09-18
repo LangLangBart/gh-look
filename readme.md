@@ -11,7 +11,7 @@ gh ext install LangLangBart/gh-look
 gh ext remove LangLangBart/gh-look
 ```
 
-### Prerequisites
+### Requirements
 Install `fzf` to use this extension, for example via Homebrew.
 
 ```zsh
@@ -21,10 +21,15 @@ brew install fzf
 ### Usage
 
 ```
-gh look [-Flag]
+gh look [Command] [-Flags] [Search term]
 ```
 
-| Flag   | Description                                                                                                                   |
+| Command | Description        |
+| ------- | ------------------ |
+| issue   | List issues        |
+| pr      | List pull requests |
+
+| Flags  | Description                                                                                                                   |
 | ------ | ----------------------------------------------------------------------------------------------------------------------------- |
 | <none> | List issues from current directory                                                                                            |
 | -e     | Emoji to make a reaction (default: THUMBS_UP 👍 ) {CONFUSED,EYES,HEART,HOORAY,LAUGH,THUMBS_DOWN,THUMBS_UP,ROCKET}              |
@@ -34,6 +39,6 @@ gh look [-Flag]
 
 ### Roadmap
 There' s still work being done on it, but that's the direction it's going to go.
-- [ ] add support for PRs, command syntax needs to change `gh look pr -Flags ...`; `gh look issue -Flags ...`
+- [ ] add support for PRs
 - [ ] add a command for listing starred repos from oneself and others users  `gh look star -Flags ...`
 

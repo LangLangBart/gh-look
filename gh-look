@@ -4,38 +4,12 @@ set -euo pipefail
 # -u : program to immediately exit on references for any variable you haven't previously defined
 # -o pipefail : any command in a pipeline that fails the return code will be used as the return code of the whole pipeline
 
-############# Check needed programs installed #############
-
-if ! command -v fzf >/dev/null; then
-	echo fzf Missing
-	exit 1
-fi
-if ! command -v bat >/dev/null; then
-	BAT_OR_CAT="cat"
-else
-	BAT_OR_CAT="bat --color always --language md --highlight-line :3 --style plain"
-fi
-
-############# Check needed scratch file exits and writeable #############
-
-# The purpose of this file is to signal to the fzf which search mode is active and remember the last one.
-# This allows switching between "Open" and "All issues/ prs" and active search within the selected category.
-SCRATCH_FILE="${BASH_SOURCE%/*}/.trashme"
-
-if [ ! -e "$SCRATCH_FILE" ]; then
-	touch "$SCRATCH_FILE" 2>/dev/null || echo "Not allowed creating $SCRATCH_FILE"
-fi
-if [ ! -w "$SCRATCH_FILE" ]; then
-	echo Not allowed writing to "$SCRATCH_FILE"
-	exit 1
-fi
-
 ############# Helper functions #############
 
 # More ideas: https://raw.githubusercontent.com/sindresorhus/cli-spinners/master/spinners.json
 SPIN_FORM=(▰▱▱▱▱▱▱ ▰▰▱▱▱▱▱ ▰▰▰▱▱▱▱ ▰▰▰▰▱▱▱ ▰▰▰▰▰▱▱ ▰▰▰▰▰▰▱ ▰▰▰▰▰▰▰)
 # Restarting fzf immediately may not show the newly created changes. Wait at least a second or two.
-load_indicator() {
+_load_indicator() {
 	printf "\n\n%s\n" "$1"
 	for i in "${SPIN_FORM[@]}"; do
 		echo -ne "\r$i"
@@ -53,10 +27,18 @@ _fzf_basic_options() {
 }
 
 ############# Manual #############
-HELP_ISSUE_SECTION='cat <<<"
-gh look [-Flags] [Search term]
+HELP_GENERAL='cat <<<"
+gh look [Command] [-Flags] [Search term]
 
-Flag   │ Description
+Command │ Description
+────────│───────────────
+issue   │ List issues
+pr      │ List pull requests"'
+
+HELP_ISSUE_SECTION='cat <<<"
+gh look issue [-Flags] [Search term]
+
+Flags  │ Description
 ───────│───────────────
 <none> │ List issues from current directory
 -e     │ Emoji to make a reaction (default: THUMBS_UP 👍 )
@@ -71,7 +53,7 @@ Head  │ Description
 💬    │ Total number of comments (gray commentable; red locked)
 📣    │ Total number of emojis (green reactable; yellow reacted; red locked)
 
-HotKey   │ Description
+HotKeys  │ Description
 ─────────│───────────────
 <search> │ https://docs.github.com/en/search-github/searching-on-github
          │  (Example: sort:reactions is:closed author:@me Autobahn)
@@ -89,71 +71,7 @@ ctrl+u   │ Undo the Emoji reaction
 ctrl+x   │ Write a comment
 esc      │ Exit"'
 
-######################################
-
-# TODO the statement [[...]] && ... || ... is a typical bash pitfall case, if the command after && fails the command after || gets executed as well (it should not); use a simple if ... else ... statement
-# https://mywiki.wooledge.org/BashPitfalls#cmd1_.26.26_cmd2_.7C.7C_cmd3
-# TODO listing the emoji used in the list, figure out how to get this information via graphql.
-# TODO remove all my emojis from the issue when the hotkey is called.
-# TODO it would be useful to store an emoji in the scratch file, but it must be visually clear which emoji is actively set when generating a reaction
-
-REACTION_EMOJI="THUMBS_UP"
-SORTING_ORDER=""
-OWNER_REPO_NAME=""
-PREVIEW_WINDOW_VISIBILITY="hidden"
-ISSUE_OUTPUT=""
-ISSUE_COMMENT_OUTPUT=""
-while getopts :e:o:R:wh flag; do
-	case "$flag" in
-	e)
-		if [[ "CONFUSED EYES HEART HOORAY LAUGH THUMBS_DOWN THUMBS_UP ROCKET" =~ $OPTARG ]]; then
-			REACTION_EMOJI="$OPTARG"
-		else
-			echo "!!! Search help, invalid emoji: $OPTARG"
-			gh api zen
-			exit 1
-		fi
-		;;
-	o)
-		if [[ "$OPTARG" =~ ^[A-Za-z-]{7,}$ ]]; then
-			SORTING_ORDER="sort:$OPTARG"
-		else
-			echo "Search help, invalid sort order: $OPTARG !!!"
-			gh api zen
-			exit 1
-		fi
-		;;
-	R)
-		# local syntax test first to fail fast, and then gh api test
-		# curl is faster, but has a rate limit
-		if [[ "$OPTARG" =~ ^[^:/]+/[^:/]+$ ]]; then
-			OWNER_REPO_NAME="$OPTARG"
-		else
-			echo "!!! Respect the syntax: ${0##*/} -R OWNER/REPO"
-			gh api zen
-			exit 1
-		fi
-		if ! gh api --silent repos/"$OWNER_REPO_NAME" 2>/dev/null; then
-			echo "No GitHub repo called $OWNER_REPO_NAME !!!"
-			gh api zen
-			exit 1
-		fi
-		;;
-	w) PREVIEW_WINDOW_VISIBILITY="nohidden" ;;
-	*)
-		sh -c "$HELP_ISSUE_SECTION"
-		exit 0
-		;;
-	esac
-done
-# shift all processed options away, all that's left "$*" are non-options (aka mass-arguments/operands)
-shift "$((OPTIND - 1))"
-INITIAL_QUERY="$*"
-if [ -z "$OWNER_REPO_NAME" ]; then
-	# if the OWNER_REPO_NAME is not set yet, check if the repo has a remote and assign the variable
-	git ls-remote --get-url 2>/dev/null 1>&2 || exit 1
-	OWNER_REPO_NAME="$(gh api graphql --field owner=:owner --field name=:repo --raw-field query=$'query ($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { nameWithOwner }}' --jq '.[].repository.nameWithOwner')"
-fi
+###################################### ISSUE
 
 _fzf_issue() {
 	# fzf allows hiding columns "--with-nth 2...", headers are also affected, so NODE_ID_HIDDEN is included there
@@ -164,7 +82,7 @@ _fzf_issue() {
 		{{- tablerow "NODE_ID_HIDDEN" (printf "%.0f of ∑ %.0f Issues" $limitCount .data.search.issueCount | color "blue+b") ("|" | color "white+d") ("? - Toggle Help" | color "blue+d") -}}{{- tablerender -}}
 		{{- tablerow "" -}}{{- tablerender -}}
 		{{- $headerColor := "blue+bd" -}}
-			{{- tablerow "NODE_ID_HIDDEN" ("ISSUE" | color $headerColor) ("AUTHOR" | color $headerColor) ("AGE" | color $headerColor) "💬" "📣" ("TITLE" | color $headerColor) -}}
+			{{- tablerow "NODE_ID_HIDDEN" ("ISSUE" | color $headerColor) ("AUTHOR" | color $headerColor) ("LAST UPDATE" | color $headerColor) "💬" "📣" ("TITLE" | color $headerColor) -}}
 		{{- range .data.search.nodes -}}
 			{{- $stateIssueColor := "green" -}}
 				{{- if eq .state "CLOSED" -}}{{- $stateIssueColor = "93" -}}{{- end -}}
@@ -212,17 +130,17 @@ _fzf_issue() {
 	case $(sed 1q <<<"${ISSUE_OUTPUT}") in
 	ctrl-e)
 		gh issue edit "$ISSUE_NUMBER" --repo "$OWNER_REPO_NAME"
-		load_indicator "Restarting ..." 0.25
+		_load_indicator "Restarting ..." 0.25
 		_fzf_issue
 		;;
 	ctrl-n)
 		gh issue create --repo "$OWNER_REPO_NAME"
-		load_indicator "Restarting ..." 0.25
+		_load_indicator "Restarting ..." 0.25
 		_fzf_issue
 		;;
 	ctrl-x)
 		gh issue comment "$ISSUE_NUMBER" --repo "$OWNER_REPO_NAME"
-		load_indicator "Restarting ..." 0.25
+		_load_indicator "Restarting ..." 0.25
 		_fzf_issue
 		;;
 	enter) _fzf_issue_comment ;;
@@ -233,7 +151,7 @@ _fzf_issue_comment() {
 		# adding U+00a0 (non-breaking space) for isues with zero comments and commentable
 		# without it an issue with 0 comments and >1 reaction would trick the if check
 		# sometimes the "age" column can only be 2 words instead of 3, e.g. "just now", that is why $6 and $7
-		load_indicator $'No comments on this issue\nRestarting ...' 0.45
+		_load_indicator $'No comments on this issue\nRestarting ...' 0.45
 		_fzf_issue
 	fi
 	HELP_ISSUE_COMMENT_SECTION='cat <<<"
@@ -241,7 +159,7 @@ Head │ Description
 ─────│───────────────
 📣   │ Total number of emojis (green reactable; yellow reacted; red locked)
 
-HotKey   │ Description
+HotKeys  │ Description
 ─────────│───────────────
 ?        │ Toggle help
 tab      │ Toggle preview
@@ -296,12 +214,12 @@ esc      │ Go back to issue list"'
 	case $(sed 1q <<<"${ISSUE_COMMENT_OUTPUT}") in
 	ctrl-n)
 		gh issue create --repo "$OWNER_REPO_NAME"
-		load_indicator "Restarting ..." 0.25
+		_load_indicator "Restarting ..." 0.25
 		_fzf_issue
 		;;
 	ctrl-x)
 		gh issue comment "$ISSUE_NUMBER" --repo "$OWNER_REPO_NAME"
-		load_indicator "Restarting ..." 0.25
+		_load_indicator "Restarting ..." 0.25
 		_fzf_issue_comment
 		;;
 	ctrl-z)
@@ -311,11 +229,11 @@ esc      │ Go back to issue list"'
 		stty sane
 		if [[ "$CONFIRM" = "y" ]]; then
 			gh api graphql --silent --raw-field id="$(sed 1d <<<"${ISSUE_COMMENT_OUTPUT}" | awk '{print $1}')" --raw-field query=$'mutation($id: ID!) { deleteIssueComment(input: {id: $id}) { clientMutationId }}' 2>/dev/null && printf "\n🟢 Success.... comment deleted\n" || printf "\n🛑 Missing permissions to delete this comment. !!!\n"
-			load_indicator "Restarting ..." 0.25
+			_load_indicator "Restarting ..." 0.25
 			_fzf_issue
 		else
 			printf "\nDiscarding... comment was not delted !!!"
-			load_indicator "Restarting ..." 0.25
+			_load_indicator "Restarting ..." 0.25
 			_fzf_issue_comment
 		fi
 		;;
@@ -323,5 +241,113 @@ esc      │ Go back to issue list"'
 	esac
 }
 
+###################################### PULL-REQUEST (PR)
+
 # -----------------------------------------------------------------------------
-_fzf_issue
+
+# TODO the statement [[...]] && ... || ... is a typical bash pitfall case, if the command after && fails the command after || gets executed as well (it should not); use a simple if ... else ... statement
+# https://mywiki.wooledge.org/BashPitfalls#cmd1_.26.26_cmd2_.7C.7C_cmd3
+# TODO listing the emoji the user used in the list, figure out how to get this information via graphql.
+# TODO remove all my emojis from the issue when the hotkey is called.
+# TODO it would be useful to store an emoji in the scratch file, but it must be visually clear which emoji is actively set when generating a reaction
+
+REACTION_EMOJI="THUMBS_UP"
+SORTING_ORDER=""
+OWNER_REPO_NAME=""
+PREVIEW_WINDOW_VISIBILITY="hidden"
+ISSUE_OUTPUT=""
+ISSUE_COMMENT_OUTPUT=""
+BAT_OR_CAT="cat"
+
+if [ $# = 0 ]; then
+	bash -c "$HELP_GENERAL"
+	exit 1
+else
+	############# Check needed programs installed #############
+	if ! command -v fzf >/dev/null; then
+		echo Missing: fzf
+		exit 1
+	fi
+	if command -v bat >/dev/null; then
+		BAT_OR_CAT="bat --color always --language md --highlight-line :3 --style plain"
+	fi
+
+	############# Check needed scratch file exits and writeable #############
+	# The purpose of this file is to signal to the fzf which search mode is active and remember the last one.
+	# This allows switching between "Open" and "All issues/ prs" and active search within the selected category.
+	SCRATCH_FILE="${BASH_SOURCE%/*}/.trashme"
+	if [ ! -e "$SCRATCH_FILE" ]; then
+		touch "$SCRATCH_FILE" 2>/dev/null || echo "Not allowed creating $SCRATCH_FILE"
+	fi
+	if [ ! -w "$SCRATCH_FILE" ]; then
+		echo Not allowed writing to "$SCRATCH_FILE"
+		exit 1
+	fi
+fi
+
+while [ $# -gt 0 ]; do
+	COMMAND_ARG="$1"
+	case "$COMMAND_ARG" in
+	issue | pr)
+		shift
+		while getopts :e:o:R:w flag; do
+			case "$flag" in
+			e)
+				if [[ "CONFUSED EYES HEART HOORAY LAUGH THUMBS_DOWN THUMBS_UP ROCKET" =~ $OPTARG ]]; then
+					REACTION_EMOJI="$OPTARG"
+				else
+					echo "!!! Search help, invalid emoji: $OPTARG"
+					gh api zen
+					exit 1
+				fi
+				;;
+			o)
+				if [[ "$OPTARG" =~ ^[A-Za-z-]{7,}$ ]]; then
+					SORTING_ORDER="sort:$OPTARG"
+				else
+					echo "Search help, invalid sort order: $OPTARG !!!"
+					gh api zen
+					exit 1
+				fi
+				;;
+			R)
+				# local syntax test first to fail fast, and then gh api test
+				# curl is faster, but has a rate limit
+				if [[ "$OPTARG" =~ ^[^:/]+/[^:/]+$ ]]; then
+					OWNER_REPO_NAME="$OPTARG"
+				else
+					echo "!!! Respect the syntax: ${0##*/} -R OWNER/REPO"
+					gh api zen
+					exit 1
+				fi
+				if ! gh api --silent repos/"$OWNER_REPO_NAME" 2>/dev/null; then
+					echo "No GitHub repo called $OWNER_REPO_NAME !!!"
+					gh api zen
+					exit 1
+				fi
+				;;
+			w) PREVIEW_WINDOW_VISIBILITY="nohidden" ;;
+			*)
+				bash -c "$HELP_ISSUE_SECTION"
+				exit 0
+				;;
+			esac
+		done
+		# shift all processed options away, all that's left "$*" are non-options (aka mass-arguments/operands)
+		shift "$((OPTIND - 1))"
+		INITIAL_QUERY="$*"
+		if [ -z "$OWNER_REPO_NAME" ]; then
+			# if the OWNER_REPO_NAME is not set yet, check if the repo has a remote and assign the variable
+			git ls-remote --get-url 2>/dev/null 1>&2 || exit 1
+			OWNER_REPO_NAME="$(gh api graphql --field owner=:owner --field name=:repo --raw-field query=$'query ($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { nameWithOwner }}' --jq '.[].repository.nameWithOwner')"
+		fi
+		grep -q "issue" <<<"$COMMAND_ARG" && _fzf_issue
+		grep -q "pr" <<<"$COMMAND_ARG" && echo "not aviable yet"
+		;;
+	*)
+		bash -c "$HELP_GENERAL"
+		exit 1
+		;;
+
+	esac
+done
