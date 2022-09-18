@@ -9,8 +9,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  shellcheck:
-    name: Run shellcheck
+  lint:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
