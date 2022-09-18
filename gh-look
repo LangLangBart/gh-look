@@ -43,7 +43,7 @@ Flags  │ Description
 <none> │ List issues from current directory
 -e     │ Emoji to make a reaction (default: THUMBS_UP 👍 )
        │  {CONFUSED,EYES,HEART,HOORAY,LAUGH,THUMBS_DOWN,THUMBS_UP,ROCKET}
--o     │ sorting oder of issues (default: created-desc)
+-o     │ sorting order of issues (default: created-desc)
        │  {author-date,committer-date,created,interactions,reactions,updated}-{desc,asc}
 -R     │ Specify a repo (form: OWNER/NAME)
 -w     │ Display the preview window upon start (default: hidden)
