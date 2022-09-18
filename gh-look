@@ -16,6 +16,20 @@ else
 	BAT_OR_CAT="bat --color always --language md --highlight-line :3 --style plain"
 fi
 
+############# Check needed scratch file exits and writeable #############
+
+# The purpose of this file is to signal to the fzf which search mode is active and remember the last one.
+# This allows switching between "Open" and "All issues/ prs" and active search within the selected category.
+SCRATCH_FILE="${BASH_SOURCE%/*}/.trashme"
+
+if [ ! -e "$SCRATCH_FILE" ]; then
+	touch "$SCRATCH_FILE" 2>/dev/null || echo "Not allowed creating $SCRATCH_FILE"
+fi
+if [ ! -w "$SCRATCH_FILE" ]; then
+	echo Not allowed writing to "$SCRATCH_FILE"
+	exit 1
+fi
+
 ############# Helper functions #############
 
 # More ideas: https://raw.githubusercontent.com/sindresorhus/cli-spinners/master/spinners.json
@@ -31,12 +45,49 @@ load_indicator() {
 
 # Redefine this function to change the options
 # https://github.com/junegunn/fzf-git.sh/blob/main/fzf-git.sh#L104
-_fzf_git_fzf() {
+_fzf_basic_options() {
 	fzf -- \
 		--ansi --layout reverse --info inline --no-multi --height 100% \
 		--header '' --ellipsis '' --border horizontal \
-		--preview-window 'right,50%,border-left' "$@"
+		--preview-window "$PREVIEW_WINDOW_VISIBILITY:wrap:right:50%:border-left" "$@"
 }
+
+############# Manual #############
+HELP_ISSUE_SECTION='cat <<<"
+gh look [-Flags] [Search term]
+
+Flag   │ Description
+───────│───────────────
+<none> │ List issues from current directory
+-e     │ Emoji to make a reaction (default: THUMBS_UP 👍 )
+       │  {CONFUSED,EYES,HEART,HOORAY,LAUGH,THUMBS_DOWN,THUMBS_UP,ROCKET}
+-o     │ sorting oder of issues (default: created-desc)
+       │  {author-date,committer-date,created,interactions,reactions,updated}-{desc,asc}
+-R     │ Specify a repo (form: OWNER/NAME)
+-w     │ Display the preview window upon start (default: hidden)
+
+Head  │ Description
+──────│───────────────
+💬    │ Total number of comments (gray commentable; red locked)
+📣    │ Total number of emojis (green reactable; yellow reacted; red locked)
+
+HotKey   │ Description
+─────────│───────────────
+<search> │ https://docs.github.com/en/search-github/searching-on-github
+         │  (Example: sort:reactions is:closed author:@me Autobahn)
+?        │ Toggle help
+enter    │ See comments
+tab      │ Toggle preview notification
+ctrl+a   │ ALL issues listed
+ctrl+b   │ Browser
+ctrl+e   │ Edit an issue
+ctrl+f   │ Fuzzy search
+ctrl+n   │ New issue
+ctrl+o   │ OPEN issues listed
+ctrl+t   │ React with an Emoji
+ctrl+u   │ Undo the Emoji reaction
+ctrl+x   │ Write a comment
+esc      │ Exit"'
 
 ######################################
 
@@ -44,6 +95,7 @@ _fzf_git_fzf() {
 # https://mywiki.wooledge.org/BashPitfalls#cmd1_.26.26_cmd2_.7C.7C_cmd3
 # TODO listing the emoji used in the list, figure out how to get this information via graphql.
 # TODO remove all my emojis from the issue when the hotkey is called.
+# TODO it would be useful to store an emoji in the scratch file, but it must be visually clear which emoji is actively set when generating a reaction
 
 REACTION_EMOJI="THUMBS_UP"
 SORTING_ORDER=""
@@ -51,7 +103,7 @@ OWNER_REPO_NAME=""
 PREVIEW_WINDOW_VISIBILITY="hidden"
 ISSUE_OUTPUT=""
 ISSUE_COMMENT_OUTPUT=""
-while getopts :e:o:R:w flag; do
+while getopts :e:o:R:wh flag; do
 	case "$flag" in
 	e)
 		if [[ "CONFUSED EYES HEART HOORAY LAUGH THUMBS_DOWN THUMBS_UP ROCKET" =~ $OPTARG ]]; then
@@ -90,7 +142,7 @@ while getopts :e:o:R:w flag; do
 	w) PREVIEW_WINDOW_VISIBILITY="nohidden" ;;
 	*)
 		sh -c "$HELP_ISSUE_SECTION"
-		exit 1
+		exit 0
 		;;
 	esac
 done
@@ -104,42 +156,6 @@ if [ -z "$OWNER_REPO_NAME" ]; then
 fi
 
 _fzf_issue() {
-	HELP_ISSUE_SECTION='cat <<<"
-gh look [-Flags] [Search term]
-
-Flag   │ Description
-───────│───────────────
-<none> │ List issues from current directory
--e     │ Emoji to make a reaction (default: THUMBS_UP 👍 )
-       │  {CONFUSED,EYES,HEART,HOORAY,LAUGH,THUMBS_DOWN,THUMBS_UP,ROCKET}
--o     │ sorting oder of issues (default: created-desc)
-       │  {author-date,committer-date,created,interactions,reactions,updated}-{desc,asc}
--R     │ Specify a repo (form: OWNER/NAME)
--w     │ Display the preview window upon start (default: hidden)
-
-Head  │ Description
-──────│───────────────
-💬    │ Total number of comments (gray commentable; red locked)
-📣    │ Total number of emojis (green reactable; yellow reacted; red locked)
-
-HotKey   │ Description
-─────────│───────────────
-<search> │ https://docs.github.com/en/search-github/searching-on-github
-         │  (Example: sort:reactions is:closed author:@me Autobahn)
-?        │ Toggle help
-enter    │ See comments
-tab      │ Toggle preview notification
-ctrl+a   │ ALL issues listed
-ctrl+b   │ Open browser
-ctrl+e   │ Edit an issue
-ctrl+f   │ Fuzzy search
-ctrl+n   │ New issue
-ctrl+o   │ OPEN issues listed
-ctrl+t   │ React with an Emoji
-ctrl+u   │ Undo the Emoji reaction
-ctrl+x   │ Write a comment
-esc      │ Exit"'
-
 	# fzf allows hiding columns "--with-nth 2...", headers are also affected, so NODE_ID_HIDDEN is included there
 	# when columns are hidden the number on GH_FORCE_TTY needs to be increased
 	GH_ISSUE_COMMAND=$'gh api graphql --raw-field query=\'query($filter: String!) {search(query: $filter, type: ISSUE, first: 75) {issueCount nodes { ... on Issue { author { login } comments {totalCount} id number updatedAt reactions { totalCount viewerHasReacted } state title viewerCanReact viewerDidAuthor }}}}\' --template \'
@@ -175,25 +191,21 @@ esc      │ Exit"'
 	GH_ADD_REACTION=$'gh api graphql --silent --raw-field query=\'mutation($id: ID! $emoji: ReactionContent! ) { addReaction(input: {subjectId: $id content: $emoji }) { clientMutationId }}\''
 	GH_REMOVE_REACTION=$'gh api graphql --silent --raw-field query=\'mutation($id: ID! $emoji: ReactionContent! ) { removeReaction(input: {subjectId: $id content: $emoji }) { clientMutationId }}\''
 
-	# The purpose of this file is to signal to the fzf which search mode is active and remember the last one.
-	DUMMY_FILE="${BASH_SOURCE%/*}/.trashme"
-	[[ ! -e $DUMMY_FILE ]] && touch "$DUMMY_FILE"
+	INITIAL_PROMPT=$(grep -q A <"$SCRATCH_FILE" && printf "ALL ◉ [%s] > " "$OWNER_REPO_NAME" || printf "\e[1;92mOPEN ◉ [%s] > " "$OWNER_REPO_NAME")
 
-	INITIAL_PROMPT=$(grep -q A <"$DUMMY_FILE" && printf "ALL ◉ [%s] > " "$OWNER_REPO_NAME" || printf "\e[1;92mOPEN ◉ [%s] > " "$OWNER_REPO_NAME")
-
-	ISSUE_OUTPUT=$(FZF_DEFAULT_COMMAND="(grep -q A <$DUMMY_FILE && $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME $INITIAL_QUERY \" || $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME state:open $INITIAL_QUERY \") || true" \
-		GH_FORCE_TTY=125% _fzf_git_fzf --disabled --header-lines 3 --with-nth 2.. \
-		--prompt "$INITIAL_PROMPT" --preview-window wrap:"$PREVIEW_WINDOW_VISIBILITY" \
+	ISSUE_OUTPUT=$(FZF_DEFAULT_COMMAND="(grep -q A <$SCRATCH_FILE && $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME $INITIAL_QUERY \" || $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME state:open $INITIAL_QUERY \") || true" \
+		GH_FORCE_TTY=125% _fzf_basic_options --disabled --header-lines 3 --with-nth 2.. \
+		--prompt "$INITIAL_PROMPT" \
 		--query "$INITIAL_QUERY" --preview "gh issue view {2} --repo $OWNER_REPO_NAME --comments" \
-		--bind "change:first+reload:sleep 0.25; (grep -q A <$DUMMY_FILE && $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME \"{q} || $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME state:open \"{q}) || true" \
+		--bind "change:first+reload:sleep 0.25; (grep -q A <$SCRATCH_FILE && $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME \"{q} || $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME state:open \"{q}) || true" \
 		--bind "?:toggle-preview+change-preview:$HELP_ISSUE_SECTION" \
 		--bind "tab:toggle-preview+change-preview:gh issue view {2} --repo $OWNER_REPO_NAME --comments" \
-		--bind "ctrl-a:rebind(change)+change-prompt(ALL ◉ [$OWNER_REPO_NAME] > )+disable-search+execute-silent(echo A >$DUMMY_FILE)+reload:$GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME \"{q} || true" \
+		--bind "ctrl-a:rebind(change)+change-prompt(ALL ◉ [$OWNER_REPO_NAME] > )+disable-search+execute-silent(echo A >$SCRATCH_FILE)+reload:$GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME \"{q} || true" \
 		--bind "ctrl-b:execute-silent(gh issue view {2} --web --repo $OWNER_REPO_NAME)" \
 		--bind $'ctrl-f:unbind(change)+enable-search+clear-query+change-prompt(\e[1;93mFUZZY SEARCH'" [$OWNER_REPO_NAME] > )" \
-		--bind $'ctrl-o:rebind(change)+change-prompt(\e[1;92mOPEN ◉'" [$OWNER_REPO_NAME] > )+disable-search+execute-silent(echo B >$DUMMY_FILE)+reload:$GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME state:open \"{q} || true" \
-		--bind "ctrl-t:execute-silent($GH_ADD_REACTION --raw-field id={1} --raw-field emoji=$REACTION_EMOJI)+reload:(grep -q A <$DUMMY_FILE && $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME \"{q} || $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME state:open \"{q}) || true" \
-		--bind "ctrl-u:execute-silent($GH_REMOVE_REACTION --raw-field id={1} --raw-field emoji=$REACTION_EMOJI)+reload:(grep -q A <$DUMMY_FILE && $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME \"{q} || $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME state:open \"{q}) || true" \
+		--bind $'ctrl-o:rebind(change)+change-prompt(\e[1;92mOPEN ◉'" [$OWNER_REPO_NAME] > )+disable-search+execute-silent(echo B >$SCRATCH_FILE)+reload:$GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME state:open \"{q} || true" \
+		--bind "ctrl-t:execute-silent($GH_ADD_REACTION --raw-field id={1} --raw-field emoji=$REACTION_EMOJI)+reload:(grep -q A <$SCRATCH_FILE && $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME \"{q} || $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME state:open \"{q}) || true" \
+		--bind "ctrl-u:execute-silent($GH_REMOVE_REACTION --raw-field id={1} --raw-field emoji=$REACTION_EMOJI)+reload:(grep -q A <$SCRATCH_FILE && $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME \"{q} || $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME state:open \"{q}) || true" \
 		--expect "ctrl-e,ctrl-n,ctrl-x,enter")
 
 	ISSUE_NUMBER=$(sed 1d <<<"${ISSUE_OUTPUT}" | awk '{print $2}' | tr -d "#")
@@ -233,12 +245,12 @@ HotKey   │ Description
 ─────────│───────────────
 ?        │ Toggle help
 tab      │ Toggle preview
-ctrl+b   │ Open browser
+ctrl+b   │ Browser
 ctrl+n   │ New issue
 ctrl+t   │ React with an Emoji
 ctrl+u   │ Undo the Emoji reaction
 ctrl+x   │ Write a comment
-ctrl+z   │ Delete the comment after confirmation and exit
+ctrl+z   │ Delete the comment after confirmation
 esc      │ Go back to issue list"'
 
 	GH_ISSUE_COMMENTS_COMMAND=$'gh api graphql --paginate --raw-field query=\'query ($owner: String!, $name: String!, $number: Int!, $endCursor: String) { repository(owner: $owner, name: $name) { issue(number: $number) { author { login } createdAt number state title comments(first: 100, after: $endCursor) { totalCount nodes { author { login } body createdAt databaseId id reactions { totalCount viewerHasReacted } viewerCanReact viewerDidAuthor } pageInfo { endCursor hasNextPage }}}}}\' --template \'
@@ -271,9 +283,9 @@ esc      │ Go back to issue list"'
 	GH_ISSUE_COMMENTS_PREVIEW=$'printf "COMMENTER:\t%s\nDATE:\t\t%s\n%s" {3} {4..6} "$(gh api graphql --raw-field id={1} --raw-field query=\'query($id: ID!) {node(id: $id) {... on Comment {body} ... on Reactable { reactionGroups { content reactors { totalCount }}}}}\' --template \'{{ range .data.node.reactionGroups }}{{ $emoji := .content }}{{ if eq .content "CONFUSED" }}{{ $emoji = "😕" }}{{ else if eq .content "EYES" }}{{ $emoji = "👀" }}{{ else if eq .content "HEART" }}{{ $emoji = "❤️" }}{{ else if eq .content "HOORAY" }}{{ $emoji = "🎉" }}{{ else if eq .content "LAUGH" }}{{ $emoji = "😄" }}{{ else if eq .content "THUMBS_DOWN" }}{{ $emoji = "👎" }}{{ else if eq .content "THUMBS_UP" }}{{ $emoji = "👍" }}{{ else if eq .content "ROCKET" }}{{ $emoji = "🚀" }}{{ end }}{{ if gt .reactors.totalCount 0.0 }}{{ printf "%s %v  " $emoji .reactors.totalCount }}{{ end }}{{ end }}{{- tablerow "" -}}{{- tablerender -}}{{- tablerow "" -}}{{- tablerender -}}{{ .data.node.body}}\')" | '"$BAT_OR_CAT"
 
 	ISSUE_COMMENT_OUTPUT=$(FZF_DEFAULT_COMMAND="$GH_ISSUE_COMMENTS_COMMAND --raw-field owner=${OWNER_REPO_NAME%/*} --raw-field name=${OWNER_REPO_NAME#*/} --field number=$ISSUE_NUMBER" \
-		GH_FORCE_TTY=150% _fzf_git_fzf --header-lines 5 --with-nth 3.. \
+		GH_FORCE_TTY=150% _fzf_basic_options --header-lines 5 --with-nth 3.. \
 		--prompt $'\e[1;94m'" 💬 [$OWNER_REPO_NAME] > " \
-		--preview-window "wrap:$PREVIEW_WINDOW_VISIBILITY:+4:~4" --preview "$GH_ISSUE_COMMENTS_PREVIEW" \
+		--preview-window "+4:~4" --preview "$GH_ISSUE_COMMENTS_PREVIEW" \
 		--bind "?:toggle-preview+change-preview:$HELP_ISSUE_COMMENT_SECTION" \
 		--bind "tab:toggle-preview+change-preview:$GH_ISSUE_COMMENTS_PREVIEW" \
 		--bind "ctrl-b:execute-silent(open https://github.com/$OWNER_REPO_NAME/issues/$ISSUE_NUMBER#issuecomment-{2})" \
