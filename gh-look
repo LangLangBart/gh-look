@@ -71,45 +71,6 @@ ctrl+u   │ Undo the Emoji reaction
 ctrl+x   │ Write a comment
 esc      │ Exit"'
 
-HELP_PR_SECTION='cat <<<"
-gh look pr [-Flags] [Search term]
-
-Flags  │ Description
-───────│───────────────
-<none> │ List pull requests from current directory
--e     │ Emoji to make a reaction (default: THUMBS_UP 👍 )
-       │  {CONFUSED,EYES,HEART,HOORAY,LAUGH,THUMBS_DOWN,THUMBS_UP,ROCKET}
--o     │ sorting order of pull requests (default: created-desc)
-       │  {author-date,committer-date,created,interactions,reactions,updated}-{desc,asc}
--R     │ Specify a repo (form: OWNER/REPO)
--w     │ Display the preview window upon start (default: hidden)
-
-Head  │ Description
-──────│───────────────
-💬    │ Total number of comments (gray commentable; red locked)
-📣    │ Total number of emojis (green reactable; yellow reacted; red locked)
-+     │ Additions
--     │ Deletions
-
-HotKeys  │ Description
-─────────│───────────────
-<search> │ https://docs.github.com/en/search-github/searching-on-github
-         │  (Example: sort:reactions is:closed author:@me Autobahn)
-?        │ Toggle help
-enter    │ See comments
-tab      │ Toggle pull request preview
-ctrl+a   │ ALL pull requests
-ctrl+b   │ Browser
-ctrl+d   │ Toggle diff
-ctrl+e   │ Edit a pull request
-ctrl+f   │ Fuzzy search
-ctrl+g   │ Merge a pull request
-ctrl+o   │ OPEN pull requests only
-ctrl+t   │ React with an Emoji
-ctrl+u   │ Undo the Emoji reaction
-ctrl+x   │ Write a comment
-ctrl+y   │ Checkout
-esc      │ Exit"'
 ###################################### ISSUE
 
 _fzf_issue() {
@@ -279,6 +240,46 @@ esc      │ Return to to issue list"'
 
 ###################################### PULL-REQUEST (PR)
 
+HELP_PR_SECTION='cat <<<"
+gh look pr [-Flags] [Search term]
+
+Flags  │ Description
+───────│───────────────
+<none> │ List pull requests from current directory
+-e     │ Emoji to make a reaction (default: THUMBS_UP 👍 )
+       │  {CONFUSED,EYES,HEART,HOORAY,LAUGH,THUMBS_DOWN,THUMBS_UP,ROCKET}
+-o     │ sorting order of pull requests (default: created-desc)
+       │  {author-date,committer-date,created,interactions,reactions,updated}-{desc,asc}
+-R     │ Specify a repo (form: OWNER/REPO)
+-w     │ Display the preview window upon start (default: hidden)
+
+Head  │ Description
+──────│───────────────
+💬    │ Total number of comments (gray commentable; red locked)
+📣    │ Total number of emojis (green reactable; yellow reacted; red locked)
++     │ Additions
+-     │ Deletions
+
+HotKeys  │ Description
+─────────│───────────────
+<search> │ https://docs.github.com/en/search-github/searching-on-github
+         │  (Example: sort:reactions is:closed author:@me Autobahn)
+?        │ Toggle help
+enter    │ See comments
+tab      │ Toggle pull request preview
+ctrl+a   │ ALL pull requests
+ctrl+b   │ Browser
+ctrl+d   │ Toggle diff
+ctrl+e   │ Edit a pull request
+ctrl+f   │ Fuzzy search
+ctrl+g   │ Merge a pull request
+ctrl+o   │ OPEN pull requests only
+ctrl+t   │ React with an Emoji
+ctrl+u   │ Undo the Emoji reaction
+ctrl+x   │ Write a comment
+ctrl+y   │ Checkout
+esc      │ Exit"'
+
 _fzf_pr() {
 	# fzf allows hiding columns "--with-nth 2...", headers are also affected, so NODE_ID_HIDDEN is included there
 	# when columns are hidden the number on GH_FORCE_TTY needs to be increased
@@ -424,7 +425,68 @@ esc      │ Return to pull request list"'
 	esc) _fzf_pr ;;
 	esac
 }
-# -----------------------------------------------------------------------------
+
+###################################### STARS
+
+HELP_STAR_SECTION='cat <<<"
+gh look star [-Flags] [Search term]
+
+Flags  │ Description
+───────│───────────────
+<none> │ List your stars (sorted by the time the user set the star)
+-U     │ List stars from a user
+-w     │ Display the preview window upon start (default: hidden)
+
+Head │ Description
+─────│───────────────
+⭐   │ Number of stargazers
+🏁   │ Primary language
+
+HotKeys  │ Description
+─────────│───────────────
+?        │ Toggle help
+tab      │ Preview README
+ctrl+b   │ Browser
+ctrl+r   │ Preview release infos
+ctrl+t   │ Star repo (useful for stars of another user)
+ctrl+u   │ Unstar repo
+ctrl+x   │ Write a comment
+esc      │ Exit"'
+
+_fzf_star() {
+	FZF_DEFAULT_COMMAND=$'gh api graphql --paginate --raw-field query=\'query($endCursor: String, $USER_NAME:String! ) { user(login:$USER_NAME) { starredRepositories(orderBy: { field: STARRED_AT direction: DESC }, first: 100, after: $endCursor) { totalCount pageInfo { hasNextPage, endCursor } nodes { nameWithOwner primaryLanguage {name} stargazerCount viewerHasStarred pushedAt description }}}}\' --template \'
+		{{- tablerow (printf "∑ %.0f Starred Repos" .data.user.starredRepositories.totalCount | color "yellow+h") ( "|" | color "white") ("? - Toggle Help" | color "blue+d") -}}{{- tablerender -}}
+		{{- tablerow "" -}}{{- tablerender -}}
+		{{- $headerColor := "yellow+b" -}}
+			{{- tablerow ("REPO" | color $headerColor) "⭐" "🏁" ("LAST COMMIT" | color $headerColor) ("DESCRIPTION" | color $headerColor) -}}
+		{{- range .data.user.starredRepositories.nodes -}}
+		{{- $stargazerCount := printf "%.0f" .stargazerCount -}}
+			{{- if gt .stargazerCount 1000000.0 -}}{{- $stargazerCount = ">1M" -}}
+				{{- else if gt .stargazerCount 100000.0 -}}{{- $stargazerCount = printf "%.3sk" $stargazerCount -}}
+				{{- else if gt .stargazerCount 10000.0 -}}{{- $stargazerCount = printf "%.2sk" $stargazerCount -}}
+				{{- else if gt .stargazerCount 1000.0 -}}{{- $stargazerCount = printf "%.1sk" $stargazerCount -}}
+				{{- else if eq .stargazerCount 0.0 -}}{{- $stargazerCount = "" -}}
+			{{- end -}}
+		{{- $stargazerColor := "yellow" -}}
+			{{- if .viewerHasStarred }}{{ $stargazerColor = "black+b:yellow" }}{{ end -}}
+		{{- $langName := "" -}}
+			{{- if .primaryLanguage }}{{ $langName = .primaryLanguage.name }}{{ end -}}
+			{{- if eq $langName "JavaScript" }}{{- $langName = "" -}}
+				{{- else if eq $langName "Python" }}{{- $langName = "" -}}
+			{{ end -}}
+			{{- tablerow (.nameWithOwner | color "cyan+h") ($stargazerCount | color $stargazerColor) ($langName | color "green") (timeago .pushedAt | color "gray+h") .description -}}
+		{{- end -}}\''" --raw-field USER_NAME=$USER_NAME" \
+		GH_FORCE_TTY=100% fzf --ansi --no-multi --nth 1,3,7.. \
+		--prompt $'\e[1;93mSearch  stars'" [$USER_NAME] > " --header "" --header-lines 3 \
+		--preview "gh repo view {1}" --preview-window wrap:"$PREVIEW_WINDOW_VISIBILITY" \
+		--query "$INITIAL_QUERY" --exact \
+		--bind "?:toggle-preview+change-preview:$HELP_STAR_SECTION" \
+		--bind 'tab:toggle-preview+change-preview(gh repo view {1})' \
+		--bind "ctrl-b:execute-silent(gh repo view {1} --web)" \
+		--bind $'ctrl-r:toggle-preview+change-preview([[ $(gh release list -R {1}) ]] && gh release view -R {1})' \
+		--bind $'ctrl-t:execute-silent(gh api -X PUT /user/starred/{1})+reload(eval "$FZF_DEFAULT_COMMAND")' \
+		--bind $'ctrl-u:execute-silent(gh api -X DELETE /user/starred/{1})+reload(eval "$FZF_DEFAULT_COMMAND")'
+}
 
 # TODO the statement [[...]] && ... || ... is a typical bash pitfall case, if the command after && fails the command after || gets executed as well (it should not); use a simple if ... else ... statement
 # https://mywiki.wooledge.org/BashPitfalls#cmd1_.26.26_cmd2_.7C.7C_cmd3
@@ -435,6 +497,7 @@ esc      │ Return to pull request list"'
 REACTION_EMOJI="THUMBS_UP"
 SORTING_ORDER=""
 OWNER_REPO_NAME=""
+USER_NAME=""
 PREVIEW_WINDOW_VISIBILITY="hidden"
 ISSUE_OUTPUT=""
 ISSUE_COMMENT_OUTPUT=""
@@ -498,11 +561,11 @@ while [ $# -gt 0 ]; do
 				;;
 			R)
 				# local syntax test first to fail fast, and then gh api test
-				# curl is faster, but has a rate limit
+				# curl is faster, but has a small rate limit without authentication
 				if [[ "$OPTARG" =~ ^[^:/]+/[^:/]+$ ]]; then
 					OWNER_REPO_NAME="$OPTARG"
 				else
-					echo "!!! Respect the syntax: ${0##*/} -R OWNER/REPO"
+					echo "!!! Respect the syntax: gh look {issue,pr} -R OWNER/REPO"
 					gh api zen
 					exit 1
 				fi
@@ -530,6 +593,39 @@ while [ $# -gt 0 ]; do
 		fi
 		grep -q "issue" <<<"$COMMAND_ARG" && _fzf_issue
 		grep -q "pr" <<<"$COMMAND_ARG" && _fzf_pr
+		;;
+	star)
+		shift
+		while getopts :U:w flag; do
+			case "$flag" in
+			U)
+				# local syntax test first to fail fast, and then gh api test
+				if [[ "$OPTARG" =~ ^[^:/]+$ ]]; then
+					USER_NAME="$OPTARG"
+				else
+					echo "!!! Respect the syntax: gh look star -U USER"
+					exit 1
+				fi
+				if ! gh api --silent users/"$USER_NAME" 2>/dev/null; then
+					echo "No USER called $USER_NAME !!!"
+					gh api zen
+					exit 1
+				fi
+				;;
+			w) PREVIEW_WINDOW_VISIBILITY="nohidden" ;;
+			*)
+				bash -c "$HELP_STAR_SECTION"
+				exit 1
+				;;
+			esac
+		done
+		shift "$((OPTIND - 1))"
+		INITIAL_QUERY="$*"
+		# if the USER_NAME is not set yet, use your own.
+		if [ -z "$USER_NAME" ]; then
+			USER_NAME="$(gh api graphql --raw-field query='{viewer{login}}' --jq '.data.viewer.login')"
+		fi
+		_fzf_star
 		;;
 	*)
 		bash -c "$HELP_GENERAL"
