@@ -8,6 +8,11 @@ if ! command -v fzf >/dev/null; then
 	echo fzf Missing
 	exit 1
 fi
+if ! command -v bat >/dev/null; then
+	BAT_OR_CAT="cat"
+else
+	BAT_OR_CAT="bat --color always --language md --highlight-line :3 --style plain"
+fi
 
 ############# Helper function s
 
@@ -87,7 +92,7 @@ fi
 
 _fzf_issue() {
 	HELP_ISSUE_SECTION='cat <<<"
-gh [-Flags] [Search term]
+gh look [-Flags] [Search term]
 
 Flag   │ Description
 ───────│───────────────
@@ -251,7 +256,7 @@ esc      │ Go back to issue list"'
 				{{- end -}}
 			{{- tablerow .id .databaseId ($author | color $authorColor) (timeago .createdAt) ($emojiCount | color $emojiColor) .body -}}
 		{{- end -}}\''
-	GH_ISSUE_COMMENTS_PREVIEW=$'printf "COMMENTER:\t%s\nDATE:\t\t%s\n%s" {3} {4..6} "$(gh api graphql --raw-field id={1} --raw-field query=\'query($id: ID!) {node(id: $id) {... on Comment {body} ... on Reactable { reactionGroups { content reactors { totalCount }}}}}\' --template \'{{ range .data.node.reactionGroups }}{{ $emoji := .content }}{{ if eq .content "CONFUSED" }}{{ $emoji = "😕" }}{{ else if eq .content "EYES" }}{{ $emoji = "👀" }}{{ else if eq .content "HEART" }}{{ $emoji = "❤️" }}{{ else if eq .content "HOORAY" }}{{ $emoji = "🎉" }}{{ else if eq .content "LAUGH" }}{{ $emoji = "😄" }}{{ else if eq .content "THUMBS_DOWN" }}{{ $emoji = "👎" }}{{ else if eq .content "THUMBS_UP" }}{{ $emoji = "👍" }}{{ else if eq .content "ROCKET" }}{{ $emoji = "🚀" }}{{ end }}{{ if gt .reactors.totalCount 0.0 }}{{ printf "%s %v  " $emoji .reactors.totalCount }}{{ end }}{{ end }}{{- tablerow "" -}}{{- tablerender -}}{{- tablerow "" -}}{{- tablerender -}}{{ .data.node.body}}\')" | ([[ $(command -v bat >/dev/null) ]] && cat || bat --color always --language md --highlight-line :3 --style plain)'
+	GH_ISSUE_COMMENTS_PREVIEW=$'printf "COMMENTER:\t%s\nDATE:\t\t%s\n%s" {3} {4..6} "$(gh api graphql --raw-field id={1} --raw-field query=\'query($id: ID!) {node(id: $id) {... on Comment {body} ... on Reactable { reactionGroups { content reactors { totalCount }}}}}\' --template \'{{ range .data.node.reactionGroups }}{{ $emoji := .content }}{{ if eq .content "CONFUSED" }}{{ $emoji = "😕" }}{{ else if eq .content "EYES" }}{{ $emoji = "👀" }}{{ else if eq .content "HEART" }}{{ $emoji = "❤️" }}{{ else if eq .content "HOORAY" }}{{ $emoji = "🎉" }}{{ else if eq .content "LAUGH" }}{{ $emoji = "😄" }}{{ else if eq .content "THUMBS_DOWN" }}{{ $emoji = "👎" }}{{ else if eq .content "THUMBS_UP" }}{{ $emoji = "👍" }}{{ else if eq .content "ROCKET" }}{{ $emoji = "🚀" }}{{ end }}{{ if gt .reactors.totalCount 0.0 }}{{ printf "%s %v  " $emoji .reactors.totalCount }}{{ end }}{{ end }}{{- tablerow "" -}}{{- tablerender -}}{{- tablerow "" -}}{{- tablerender -}}{{ .data.node.body}}\')" | '"$BAT_OR_CAT"
 
 	ISSUE_COMMENT_OUTPUT=$(FZF_DEFAULT_COMMAND="$GH_ISSUE_COMMENTS_COMMAND --raw-field owner=${OWNER_REPO_NAME%/*} --raw-field name=${OWNER_REPO_NAME#*/} --field number=$ISSUE_NUMBER" \
 		GH_FORCE_TTY=150% fzf --ansi --no-multi --header-lines 5 --with-nth 3.. --header "" \
