@@ -4,6 +4,8 @@ set -euo pipefail
 # -u : program to immediately exit on references for any variable you haven't previously defined
 # -o pipefail : any command in a pipeline that fails the return code will be used as the return code of the whole pipeline
 
+############# Check needed programs installed #############
+
 if ! command -v fzf >/dev/null; then
 	echo fzf Missing
 	exit 1
@@ -14,7 +16,7 @@ else
 	BAT_OR_CAT="bat --color always --language md --highlight-line :3 --style plain"
 fi
 
-############# Helper function s
+############# Helper functions #############
 
 # More ideas: https://raw.githubusercontent.com/sindresorhus/cli-spinners/master/spinners.json
 SPIN_FORM=(▰▱▱▱▱▱▱ ▰▰▱▱▱▱▱ ▰▰▰▱▱▱▱ ▰▰▰▰▱▱▱ ▰▰▰▰▰▱▱ ▰▰▰▰▰▰▱ ▰▰▰▰▰▰▰)
@@ -26,7 +28,19 @@ load_indicator() {
 		sleep "$2"
 	done
 }
-############
+
+# Redefine this function to change the options
+# https://github.com/junegunn/fzf-git.sh/blob/main/fzf-git.sh#L104
+_fzf_git_fzf() {
+	fzf -- \
+		--ansi --layout reverse --info inline --no-multi --height=50% --min-height=20 \
+		--header '' --ellipsis '' --border horizontal --preview-window='right,50%,border-left' \
+		--margin '2%,1%,2%,1%' --height 65% \
+		--bind='ctrl-/:change-preview-window(down,50%,border-top|hidden|)' "$@"
+}
+
+######################################
+
 # TODO the statement [[...]] && ... || ... is a typical bash pitfall case, if the command after && fails the command after || gets executed as well (it should not); use a simple if ... else ... statement
 # https://mywiki.wooledge.org/BashPitfalls#cmd1_.26.26_cmd2_.7C.7C_cmd3
 # TODO listing the emoji used in the list, figure out how to get this information via graphql.
@@ -169,8 +183,8 @@ esc      │ Exit"'
 	INITIAL_PROMPT=$(grep -q A <"$DUMMY_FILE" && printf "ALL ◉ [%s] > " "$OWNER_REPO_NAME" || printf "\e[1;92mOPEN ◉ [%s] > " "$OWNER_REPO_NAME")
 
 	ISSUE_OUTPUT=$(FZF_DEFAULT_COMMAND="(grep -q A <$DUMMY_FILE && $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME $INITIAL_QUERY \" || $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME state:open $INITIAL_QUERY \") || true" \
-		GH_FORCE_TTY=125% fzf --ansi --disabled --no-multi --header-lines 3 \
-		--header "" --height 100% --with-nth 2.. \
+		GH_FORCE_TTY=125% _fzf_git_fzf --disabled --header-lines 3 \
+		--height 100% --with-nth 2.. \
 		--prompt "$INITIAL_PROMPT" --preview-window wrap:"$PREVIEW_WINDOW_VISIBILITY" \
 		--query "$INITIAL_QUERY" --preview "gh issue view {2} --repo $OWNER_REPO_NAME --comments" \
 		--bind "change:first+reload:sleep 0.25; (grep -q A <$DUMMY_FILE && $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME \"{q} || $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME state:open \"{q}) || true" \
@@ -259,7 +273,7 @@ esc      │ Go back to issue list"'
 	GH_ISSUE_COMMENTS_PREVIEW=$'printf "COMMENTER:\t%s\nDATE:\t\t%s\n%s" {3} {4..6} "$(gh api graphql --raw-field id={1} --raw-field query=\'query($id: ID!) {node(id: $id) {... on Comment {body} ... on Reactable { reactionGroups { content reactors { totalCount }}}}}\' --template \'{{ range .data.node.reactionGroups }}{{ $emoji := .content }}{{ if eq .content "CONFUSED" }}{{ $emoji = "😕" }}{{ else if eq .content "EYES" }}{{ $emoji = "👀" }}{{ else if eq .content "HEART" }}{{ $emoji = "❤️" }}{{ else if eq .content "HOORAY" }}{{ $emoji = "🎉" }}{{ else if eq .content "LAUGH" }}{{ $emoji = "😄" }}{{ else if eq .content "THUMBS_DOWN" }}{{ $emoji = "👎" }}{{ else if eq .content "THUMBS_UP" }}{{ $emoji = "👍" }}{{ else if eq .content "ROCKET" }}{{ $emoji = "🚀" }}{{ end }}{{ if gt .reactors.totalCount 0.0 }}{{ printf "%s %v  " $emoji .reactors.totalCount }}{{ end }}{{ end }}{{- tablerow "" -}}{{- tablerender -}}{{- tablerow "" -}}{{- tablerender -}}{{ .data.node.body}}\')" | '"$BAT_OR_CAT"
 
 	ISSUE_COMMENT_OUTPUT=$(FZF_DEFAULT_COMMAND="$GH_ISSUE_COMMENTS_COMMAND --raw-field owner=${OWNER_REPO_NAME%/*} --raw-field name=${OWNER_REPO_NAME#*/} --field number=$ISSUE_NUMBER" \
-		GH_FORCE_TTY=150% fzf --ansi --no-multi --header-lines 5 --with-nth 3.. --header "" \
+		GH_FORCE_TTY=150% _fzf_git_fzf --header-lines 5 --with-nth 3.. \
 		--prompt $'\e[1;94m'" 💬 [$OWNER_REPO_NAME] > " --height 100% \
 		--preview-window "wrap:$PREVIEW_WINDOW_VISIBILITY:+4:~4" --preview "$GH_ISSUE_COMMENTS_PREVIEW" \
 		--bind "?:toggle-preview+change-preview:$HELP_ISSUE_COMMENT_SECTION" \
