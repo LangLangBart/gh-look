@@ -45,11 +45,12 @@ gh look [Command] [-Flags] [Search term]
 ### Contributing
 
 #### Text validation
-`Vale` is a grammar, style, and word usage linter for the English language. The rules are set in the [.vale.ini](.vale.ini) file. It doesn't have a way to auto fix issues at the moment, this must be done manually.
+`Vale` is a grammar, style, and word usage linter for the English language. The rules are set in the [.vale.ini](../.vale.ini) file. It doesn't have a way to auto fix issues at the moment, this must be done manually.
 
 ```zsh
 # install, for example through Homebrew
 brew install vale
+
 
 # Downloading packages ...
 vale sync
