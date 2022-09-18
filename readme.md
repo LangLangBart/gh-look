@@ -29,13 +29,13 @@ gh look [Command] [-Flags] [Search term]
 | issue   | List issues        |
 | pr      | List pull requests |
 
-| Flags  | Description                                                                                                                   |
-| ------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| <none> | List issues from current directory                                                                                            |
+| Flags  | Description                                                                                                                    |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| <none> | List issues from current directory                                                                                             |
 | -e     | Emoji to make a reaction (default: THUMBS_UP 👍 ) {CONFUSED,EYES,HEART,HOORAY,LAUGH,THUMBS_DOWN,THUMBS_UP,ROCKET}              |
-| -o     | sorting oder of issues (default: created-desc) {author-date,committer-date,created,interactions,reactions,updated}-{desc,asc} |
-| -R     | Specify a repo (form: OWNER/NAME)                                                                                             |
-| -w     | Display the preview window upon start (default: hidden)                                                                       |
+| -o     | sorting order of issues (default: created-desc) {author-date,committer-date,created,interactions,reactions,updated}-{desc,asc} |
+| -R     | Specify a repo (form: OWNER/NAME)                                                                                              |
+| -w     | Display the preview window upon start (default: hidden)                                                                        |
 
 ### Roadmap
 There' s still work being done on it, but that's the direction it's going to go.
