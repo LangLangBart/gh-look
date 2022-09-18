@@ -60,12 +60,12 @@ HotKeys  │ Description
 ?        │ Toggle help
 enter    │ See comments
 tab      │ Toggle issue preview
-ctrl+a   │ ALL issues listed
+ctrl+a   │ ALL issues
 ctrl+b   │ Browser
 ctrl+e   │ Edit an issue
 ctrl+f   │ Fuzzy search
 ctrl+n   │ New issue
-ctrl+o   │ OPEN issues listed
+ctrl+o   │ OPEN issues only
 ctrl+t   │ React with an Emoji
 ctrl+u   │ Undo the Emoji reaction
 ctrl+x   │ Write a comment
@@ -98,15 +98,17 @@ HotKeys  │ Description
 ?        │ Toggle help
 enter    │ See comments
 tab      │ Toggle pull request preview
-ctrl+a   │ ALL pull requests listed
+ctrl+a   │ ALL pull requests
 ctrl+b   │ Browser
 ctrl+d   │ Toggle diff
-ctrl+e   │ Edit an pull request
+ctrl+e   │ Edit a pull request
 ctrl+f   │ Fuzzy search
-ctrl+o   │ OPEN pull requests listed
+ctrl+g   │ Merge a pull request
+ctrl+o   │ OPEN pull requests only
 ctrl+t   │ React with an Emoji
 ctrl+u   │ Undo the Emoji reaction
 ctrl+x   │ Write a comment
+ctrl+y   │ Checkout
 esc      │ Exit"'
 ###################################### ISSUE
 
@@ -327,8 +329,9 @@ _fzf_pr() {
 		--bind $'ctrl-o:rebind(change)+change-prompt(\e[1;92mOPEN ╫'" [$OWNER_REPO_NAME] > )+disable-search+execute-silent(echo B >$SCRATCH_FILE)+reload:$GH_PR_COMMAND --raw-field filter=\"$SORTING_ORDER type:pr repo:$OWNER_REPO_NAME state:open \"{q} || true" \
 		--bind "ctrl-t:execute-silent($GH_ADD_REACTION --raw-field id={1} --raw-field emoji=$REACTION_EMOJI)+reload:(grep -q A <$SCRATCH_FILE && $GH_PR_COMMAND --raw-field filter=\"$SORTING_ORDER type:pr repo:$OWNER_REPO_NAME \"{q} || $GH_PR_COMMAND --raw-field filter=\"$SORTING_ORDER type:pr repo:$OWNER_REPO_NAME state:open \"{q}) || true" \
 		--bind "ctrl-u:execute-silent($GH_REMOVE_REACTION --raw-field id={1} --raw-field emoji=$REACTION_EMOJI)+reload:(grep -q A <$SCRATCH_FILE && $GH_PR_COMMAND --raw-field filter=\"$SORTING_ORDER type:pr repo:$OWNER_REPO_NAME \"{q} || $GH_PR_COMMAND --raw-field filter=\"$SORTING_ORDER type:pr repo:$OWNER_REPO_NAME state:open \"{q}) || true" \
-		--expect "ctrl-e,ctrl-x,enter")
+		--expect "ctrl-e,ctrl-g,ctrl-x,ctrl-y,enter")
 
+	echo "$PR_OUTPUT"
 	PR_NUMBER=$(sed 1d <<<"${PR_OUTPUT}" | awk '{print $2}' | tr -d "#")
 	case $(sed 1q <<<"${PR_OUTPUT}") in
 	ctrl-e)
@@ -336,10 +339,18 @@ _fzf_pr() {
 		_load_indicator "Restarting ..." 0.25
 		_fzf_pr
 		;;
+	ctrl-g)
+		gh pr merge "$PR_NUMBER" --repo "$OWNER_REPO_NAME"
+		exit 0
+		;;
 	ctrl-x)
-		gh issue comment "$PR_NUMBER" --repo "$OWNER_REPO_NAME"
+		gh pr comment "$PR_NUMBER" --repo "$OWNER_REPO_NAME"
 		_load_indicator "Restarting ..." 0.25
 		_fzf_pr
+		;;
+	ctrl-y)
+		gh pr checkout "$PR_NUMBER" --repo "$OWNER_REPO_NAME"
+		exit 0
 		;;
 	enter) _fzf_pr_comment ;;
 	esac
