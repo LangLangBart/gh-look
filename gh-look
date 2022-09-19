@@ -91,7 +91,7 @@ _fzf_issue() {
 				{{- if .author -}}{{- $author = .author.login -}}{{- end -}}
 			{{- $authorColor := "cyan+h" -}}
 				{{- if .viewerDidAuthor -}}{{- $authorColor = "yellow+b" -}}{{- end -}}
-			{{- $commentCount := "\u00a0" -}}{{- /* Remark: U+00a0 (non-breaking space) for entries without comments, which the viewer can comment on. Needed to make a if decision with fzf later in the script. */ -}}
+			{{- $commentCount := "\u00a0" -}}{{- /* NOTE: U+00a0 (non-breaking space) for entries without comments, which the viewer can comment on. Needed to make a if decision with fzf later in the script. */ -}}
 				{{- if not .viewerCanReact -}}{{- $commentCount = (or (printf "%.0f" .comments.totalCount) "0")  -}}
 					{{- else if .comments.totalCount -}}{{- $commentCount = printf "%.0f" .comments.totalCount -}}
 				{{- end -}}
@@ -298,7 +298,7 @@ _fzf_pr() {
 				{{- if .author -}}{{- $author = .author.login -}}{{- end -}}
 			{{- $authorColor := "cyan+h" -}}
 				{{- if .viewerDidAuthor -}}{{- $authorColor = "yellow+b" -}}{{- end -}}
-			{{- $commentCount := "\u00a0" -}}{{- /* Remark: U+00a0 (non-breaking space) for entries without comments, which the viewer can comment on. Needed to make a if decision with fzf later in the script. */ -}}
+			{{- $commentCount := "\u00a0" -}}{{- /* NOTE: U+00a0 (non-breaking space) for entries without comments, which the viewer can comment on. Needed to make a if decision with fzf later in the script. */ -}}
 				{{- if not .viewerCanReact -}}{{- $commentCount = (or (printf "%.0f" .comments.totalCount) "0")  -}}
 					{{- else if .comments.totalCount -}}{{- $commentCount = printf "%.0f" .comments.totalCount -}}
 				{{- end -}}
@@ -474,7 +474,9 @@ _fzf_star() {
 			{{- if eq $langName "JavaScript" }}{{- $langName = "" -}}
 				{{- else if eq $langName "Python" }}{{- $langName = "" -}}
 			{{ end -}}
-			{{- tablerow (.nameWithOwner | color "cyan+h") ($stargazerCount | color $stargazerColor) ($langName | color "green") (timeago .pushedAt | color "gray+h") .description -}}
+		{{- $time := "" -}}{{- /* NOTE: Possible a repo has no commits, have an conditional around the timeago function to be safe against nil condition. */ -}}
+			{{- if .pushedAt -}}{{- $time = (timeago .pushedAt) -}}{{- end -}}
+		{{- tablerow (.nameWithOwner | color "cyan+h") ($stargazerCount | color $stargazerColor) ($langName | color "green") ($time | color "gray+h") .description -}}
 		{{- end -}}\''" --raw-field USER_NAME=$USER_NAME" \
 		GH_FORCE_TTY=100% _fzf_basic_options --ansi --no-multi --nth 1,3,7.. \
 		--prompt $'\e[1;93mSearch  stars'" [$USER_NAME] > " --header "" --header-lines 3 \
@@ -609,7 +611,8 @@ while [ $# -gt 0 ]; do
 					echo "!!! Respect the syntax: gh look star -U USER"
 					exit 1
 				fi
-				if ! gh api --silent users/"$USER_NAME" 2>/dev/null; then
+				# gh api --silent users/... would be shorter, but would result in a false positive for organizations
+				if ! gh api graphql --silent --raw-field USER_NAME="$USER_NAME" --raw-field query=$'query ($USER_NAME: String!) { user(login: $USER_NAME) { login }}' 2>/dev/null; then
 					echo "No USER called $USER_NAME !!!"
 					gh api zen
 					exit 1
