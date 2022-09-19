@@ -168,7 +168,7 @@ ctrl+t   │ React with an Emoji
 ctrl+u   │ Undo the Emoji reaction
 ctrl+x   │ Write a comment
 ctrl+z   │ Delete the comment after confirmation
-esc      │ Return to to issue list"'
+esc      │ Return to issue list"'
 
 	GH_ISSUE_COMMENTS_COMMAND=$'gh api graphql --paginate --raw-field query=\'query ($owner: String!, $name: String!, $number: Int!, $endCursor: String) { repository(owner: $owner, name: $name) { issue(number: $number) { author { login } createdAt number state title comments(first: 100, after: $endCursor) { totalCount nodes { author { login } body createdAt databaseId id reactions { totalCount viewerHasReacted } viewerCanReact viewerDidAuthor } pageInfo { endCursor hasNextPage }}}}}\' --template \'
 		{{- $prefix := .data.repository.issue -}}
@@ -435,7 +435,7 @@ gh look star [-Flags] [Search term]
 Flags  │ Description
 ───────│───────────────
 <none> │ List your stars (sorted by the time the user set the star)
--U     │ List stars from a user
+-U     │ List stars of another user
 -w     │ Display the preview window upon start (default: hidden)
 
 Head │ Description
@@ -476,7 +476,7 @@ _fzf_star() {
 			{{ end -}}
 			{{- tablerow (.nameWithOwner | color "cyan+h") ($stargazerCount | color $stargazerColor) ($langName | color "green") (timeago .pushedAt | color "gray+h") .description -}}
 		{{- end -}}\''" --raw-field USER_NAME=$USER_NAME" \
-		GH_FORCE_TTY=100% fzf --ansi --no-multi --nth 1,3,7.. \
+		GH_FORCE_TTY=100% _fzf_basic_options --ansi --no-multi --nth 1,3,7.. \
 		--prompt $'\e[1;93mSearch  stars'" [$USER_NAME] > " --header "" --header-lines 3 \
 		--preview "gh repo view {1}" --preview-window wrap:"$PREVIEW_WINDOW_VISIBILITY" \
 		--query "$INITIAL_QUERY" --exact \
@@ -514,7 +514,7 @@ if [ $# = 0 ]; then
 else
 	############# Check needed programs installed #############
 	if ! command -v fzf >/dev/null; then
-		echo Missing: fzf
+		echo "Missing: fzf"
 		exit 1
 	fi
 	if command -v bat >/dev/null; then
