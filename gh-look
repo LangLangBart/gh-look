@@ -33,7 +33,8 @@ gh look [Command] [-Flags] [Search term]
 Command │ Description
 ────────│───────────────
 issue   │ List issues
-pr      │ List pull requests"'
+pr      │ List pull requests
+star    │ List stars"'
 
 HELP_ISSUE_SECTION='cat <<<"
 gh look issue [-Flags] [Search term]
@@ -450,7 +451,6 @@ ctrl+b   │ Browser
 ctrl+r   │ Preview release infos
 ctrl+t   │ Star repo (useful for stars of another user)
 ctrl+u   │ Unstar repo
-ctrl+x   │ Write a comment
 esc      │ Exit"'
 
 _fzf_star() {
@@ -493,6 +493,9 @@ _fzf_star() {
 # TODO listing the emoji the user used in the list, figure out how to get this information via graphql.
 # TODO remove all my emojis from the issue when the hotkey is called.
 # TODO it would be useful to store an emoji in the scratch file, but it must be visually clear which emoji is actively set when generating a reaction
+# TODO on small screens, the first column is truncated for long strings. This is problematic for the fzf command, which uses information from the selected line to enable additional functions.
+# TODO on return from the comment section it falls back to the original, rather than the last
+# TODO having only three commands, its okay to have everything one file, adding more should split every command in its own file.
 
 REACTION_EMOJI="THUMBS_UP"
 SORTING_ORDER=""
