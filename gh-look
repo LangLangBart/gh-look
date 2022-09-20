@@ -178,7 +178,7 @@ esc      │ Return to issue list"'
 		{{- $issueAuthor := "[DELETED_USER]" -}}
 			{{- if $prefix.author -}}{{- $issueAuthor = $prefix.author.login -}}{{- end -}}
 			{{- tablerow "NODE_ID_HIDDEN" "DATABASE_ID_HIDDEN" (printf "%s ◉ #%.0f" $prefix.state $prefix.number | color $stateIssueCommentColor) ($issueAuthor | color "cyan+hb") (printf "│ %s ∙ %.0f Comments │" (timeago $prefix.createdAt) $prefix.comments.totalCount | color "gray+h") ("? - Toggle Help" | color "blue+d") -}}{{- tablerender -}}
-			{{- tablerow "NODE_ID_HIDDEN" "DATABASE_ID_HIDDEN" (printf "———————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————"| color "gray+d") -}}{{- tablerender -}}
+			{{- tablerow "NODE_ID_HIDDEN" "DATABASE_ID_HIDDEN" ("———————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————" | color "gray+d") -}}{{- tablerender -}}
 			{{- tablerow "NODE_ID_HIDDEN" "DATABASE_ID_HIDDEN" "" -}}{{- tablerender -}}
 		{{- $headerColor := "blue+bd" -}}
 			{{- tablerow "NODE_ID_HIDDEN" "DATABASE_ID_HIDDEN" ("COMMENTER" | color $headerColor) ("AGE" | color $headerColor) "📣" ("TITLE" | color $headerColor) -}}
@@ -201,7 +201,7 @@ esc      │ Return to issue list"'
 	ISSUE_COMMENT_OUTPUT=$(FZF_DEFAULT_COMMAND="$GH_ISSUE_COMMENTS_COMMAND --raw-field owner=${OWNER_REPO_NAME%/*} --raw-field name=${OWNER_REPO_NAME#*/} --field number=$ISSUE_NUMBER" \
 		GH_FORCE_TTY=150% _fzf_basic_options --header-lines 5 --with-nth 3.. \
 		--prompt $'\e[1;94m'"Issue 💬 [$OWNER_REPO_NAME] > " \
-		--preview-window "+4:~4" --preview "$GH_COMMENTS_PREVIEW" \
+		--preview-window "+5:~5" --preview "$GH_COMMENTS_PREVIEW" \
 		--bind "?:toggle-preview+change-preview:$HELP_ISSUE_COMMENT_SECTION" \
 		--bind "tab:toggle-preview+change-preview:$GH_COMMENTS_PREVIEW" \
 		--bind "ctrl-b:execute-silent(open https://github.com/$OWNER_REPO_NAME/issues/$ISSUE_NUMBER#issuecomment-{2})" \
@@ -385,7 +385,7 @@ esc      │ Return to pull request list"'
 		{{- $pullRequestAuthor := "[DELETED_USER]" -}}
 			{{- if $prefix.author -}}{{- $pullRequestAuthor = $prefix.author.login -}}{{- end -}}
 			{{- tablerow "NODE_ID_HIDDEN" "DATABASE_ID_HIDDEN" (printf "%s ╫ #%.0f" $prefix.state $prefix.number | color $statePullRequestCommentColor) ($pullRequestAuthor | color "cyan+hb") (printf "│ %s ∙ %.0f Comments │" (timeago $prefix.createdAt) $prefix.comments.totalCount | color "gray+h") ("? - Toggle Help" | color "blue+d") -}}{{- tablerender -}}
-			{{- tablerow "NODE_ID_HIDDEN" "DATABASE_ID_HIDDEN" (printf "———————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————"| color "gray+d") -}}{{- tablerender -}}
+			{{- tablerow "NODE_ID_HIDDEN" "DATABASE_ID_HIDDEN" ("———————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————" | color "gray+d") -}}{{- tablerender -}}
 			{{- tablerow "NODE_ID_HIDDEN" "DATABASE_ID_HIDDEN" "" -}}{{- tablerender -}}
 		{{- $headerColor := "blue+bd" -}}
 			{{- tablerow "NODE_ID_HIDDEN" "DATABASE_ID_HIDDEN" ("COMMENTER" | color $headerColor) ("AGE" | color $headerColor) "📣" ("TITLE" | color $headerColor) -}}
@@ -408,7 +408,7 @@ esc      │ Return to pull request list"'
 	PR_COMMENT_OUTPUT=$(FZF_DEFAULT_COMMAND="$GH_PR_COMMENTS_COMMAND --raw-field owner=${OWNER_REPO_NAME%/*} --raw-field name=${OWNER_REPO_NAME#*/} --field number=$PR_NUMBER" \
 		GH_FORCE_TTY=150% _fzf_basic_options --header-lines 5 --with-nth 3.. \
 		--prompt $'\e[1;94m'"Pull request 💬 [$OWNER_REPO_NAME] > " \
-		--preview-window "+4:~4" --preview "$GH_COMMENTS_PREVIEW" \
+		--preview-window "+5:~5" --preview "$GH_COMMENTS_PREVIEW" \
 		--bind "?:toggle-preview+change-preview:$HELP_PR_COMMENT_SECTION" \
 		--bind "tab:toggle-preview+change-preview:$GH_COMMENTS_PREVIEW" \
 		--bind "ctrl-b:execute-silent(open https://github.com/$OWNER_REPO_NAME/pull/$PR_NUMBER#issuecomment-{2})" \
@@ -498,7 +498,8 @@ _fzf_star() {
 # TODO on small screens, the first column is truncated for long strings. This is problematic for the fzf command, which uses information from the selected line to enable additional functions.
 # TODO on return from the comment section it falls back to the original, rather than the last
 # TODO having only three commands, its okay to have everything one file, adding more should split every command in its own file.
-# todo move between issue an pr with a hotkey
+# TODO move between issue and pr with a hotkey
+# TODO, to improve speed, add a cache variable (default:null). It would affect the interaction with emojis (as they may not appear immediately).
 
 REACTION_EMOJI="THUMBS_UP"
 SORTING_ORDER=""
@@ -521,7 +522,7 @@ else
 		exit 1
 	fi
 	if command -v bat >/dev/null; then
-		BAT_OR_CAT="bat --color always --language md --highlight-line :3 --style plain"
+		BAT_OR_CAT="bat --color always --language md --style plain"
 	fi
 
 	############# Check needed scratch file exits and writeable #############
@@ -535,10 +536,6 @@ else
 		echo Not allowed writing to "$SCRATCH_FILE"
 		exit 1
 	fi
-	GH_ADD_REACTION=$'gh api graphql --silent --raw-field query=\'mutation($id: ID! $emoji: ReactionContent! ) { addReaction(input: {subjectId: $id content: $emoji }) { clientMutationId }}\''
-	GH_REMOVE_REACTION=$'gh api graphql --silent --raw-field query=\'mutation($id: ID! $emoji: ReactionContent! ) { removeReaction(input: {subjectId: $id content: $emoji }) { clientMutationId }}\''
-	# Get the commenter's name and date, convert the emojis to real emojis, add the total number and list the first few names for each group, end the list with the commenter's actual message
-	GH_COMMENTS_PREVIEW=$'printf "COMMENTER:\t%s\nDATE:\t\t%s\n%s" {3} {4..6} "$(gh api graphql --raw-field id={1} --raw-field query=\'query($id: ID!) {node(id: $id) {... on Comment {body} ... on Reactable { reactionGroups { content viewerHasReacted reactors(first: 100) { nodes {... on User { login }} totalCount }}}}}\' --template \'{{ range .data.node.reactionGroups }}{{ $emoji := .content }}{{ if eq .content "CONFUSED" }}{{ $emoji = "😕" }}{{ else if eq .content "EYES" }}{{ $emoji = "👀" }}{{ else if eq .content "HEART" }}{{ $emoji = "❤️" }}{{ else if eq .content "HOORAY" }}{{ $emoji = "🎉" }}{{ else if eq .content "LAUGH" }}{{ $emoji = "😄" }}{{ else if eq .content "THUMBS_DOWN" }}{{ $emoji = "👎" }}{{ else if eq .content "THUMBS_UP" }}{{ $emoji = "👍" }}{{ else if eq .content "ROCKET" }}{{ $emoji = "🚀" }}{{ end }}{{ if gt .reactors.totalCount 0.0 }}{{ $emojiGiver := pluck "login" .reactors.nodes | join ", " | color "gray" }}{{ if gt (pluck "login" .reactors.nodes | len ) 3 }}{{- /* NOTE: number of names limited */ -}}{{ $emojiGiver = pluck "login" .reactors.nodes | join ", " | printf "%.25s..." | color "gray" }}{{end}}{{- $emojiTotal := .reactors.totalCount | color "white+b" -}}{{- if .viewerHasReacted -}}{{- $emojiTotal = .reactors.totalCount | color "yellow+bh" -}}{{- end -}}{{- printf "%s %v %s  " $emoji $emojiTotal $emojiGiver -}}{{- end -}}{{- end }}{{- tablerow "" -}}{{- tablerender -}}{{- tablerow "" -}}{{- tablerender -}}{{- .data.node.body -}}\')" | '"$BAT_OR_CAT"
 fi
 
 while [ $# -gt 0 ]; do
@@ -598,6 +595,16 @@ while [ $# -gt 0 ]; do
 			git ls-remote --get-url 2>/dev/null 1>&2 || exit 1
 			OWNER_REPO_NAME="$(gh api graphql --field owner=:owner --field name=:repo --raw-field query=$'query ($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { nameWithOwner }}' --jq '.[].repository.nameWithOwner')"
 		fi
+
+		GH_ADD_REACTION=$'gh api graphql --silent --raw-field query=\'mutation($id: ID! $emoji: ReactionContent! ) { addReaction(input: {subjectId: $id content: $emoji }) { clientMutationId }}\''
+		GH_REMOVE_REACTION=$'gh api graphql --silent --raw-field query=\'mutation($id: ID! $emoji: ReactionContent! ) { removeReaction(input: {subjectId: $id content: $emoji }) { clientMutationId }}\''
+
+		# Get the name and date of the commenter, convert the emojis to real emojis, add the total number next to it. Highlight if the viewer has used it.
+		# Get the last 4 emoji reactor names for each group,
+		# based on the length of the array of reactor names, either print or slice 1 and add a ", ..." as an indicator of more than three
+		# End the list with the commenter's actual message.
+		GH_COMMENTS_PREVIEW=$'gh api graphql --raw-field id={1} --raw-field query=\'query($id: ID! ){node(id: $id) {... on Comment { author{login} body createdAt} ... on Reactable { reactionGroups { content viewerHasReacted reactors(last: 4) { nodes {... on User { login }} totalCount }}}}}\' --template \'{{- tablerow ("COMMENTER:" | color "blue+bd") (.data.node.author.login | color "cyan+bh") -}}{{- tablerender -}}{{- tablerow ("DATE" | color "blue+bd") (timefmt "02/Jan/06 15:04" .data.node.createdAt | color "white+h") -}}{{- tablerender -}}{{- tablerow "" -}}{{- tablerender -}}{{- range .data.node.reactionGroups -}}{{ $emoji := .content }}{{ if eq .content "CONFUSED" }}{{ $emoji = "😕" }}{{ else if eq .content "EYES" }}{{ $emoji = "👀" }}{{ else if eq .content "HEART" }}{{ $emoji = "❤ " }}{{ else if eq .content "HOORAY" }}{{ $emoji = "🎉" }}{{ else if eq .content "LAUGH" }}{{ $emoji = "😄" }}{{ else if eq .content "THUMBS_DOWN" }}{{ $emoji = "👎" }}{{ else if eq .content "THUMBS_UP" }}{{ $emoji = "👍" }}{{ else if eq .content "ROCKET" }}{{ $emoji = "🚀" }}{{ end }}{{ if gt .reactors.totalCount 0.0 }}{{ $emojiGiver := pluck "login" .reactors.nodes | join ", " | color "gray+h" }}{{ if gt (pluck "login" .reactors.nodes | len ) 3 }}{{- /* NOTE: number of names limited */ -}}{{ $emojiGiver = slice (pluck "login" .reactors.nodes) 1 | join ", " | printf "%s, ..." | color "gray+h" }}{{end}}{{- $emojiTotal := .reactors.totalCount | color "white+b" -}}{{- if .viewerHasReacted -}}{{- $emojiTotal = .reactors.totalCount | color "yellow+bh" -}}{{- end -}}{{- printf "%s %v %s  " $emojiTotal $emoji $emojiGiver -}}{{- end -}}{{- end }}{{- tablerow "" -}}{{- tablerender -}}{{- tablerow  ("—————————————————————————————"| color "gray+d") -}}{{- tablerender -}}{{- tablerow "" -}}{{- tablerender -}}{{- .data.node.body -}}\' | '"$BAT_OR_CAT"
+
 		grep -q "issue" <<<"$COMMAND_ARG" && _fzf_issue
 		grep -q "pr" <<<"$COMMAND_ARG" && _fzf_pr
 		;;
