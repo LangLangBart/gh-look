@@ -498,6 +498,7 @@ _fzf_star() {
 # TODO on small screens, the first column is truncated for long strings. This is problematic for the fzf command, which uses information from the selected line to enable additional functions.
 # TODO on return from the comment section it falls back to the original, rather than the last
 # TODO having only three commands, its okay to have everything one file, adding more should split every command in its own file.
+# todo move between issue an pr with a hotkey
 
 REACTION_EMOJI="THUMBS_UP"
 SORTING_ORDER=""
@@ -536,7 +537,8 @@ else
 	fi
 	GH_ADD_REACTION=$'gh api graphql --silent --raw-field query=\'mutation($id: ID! $emoji: ReactionContent! ) { addReaction(input: {subjectId: $id content: $emoji }) { clientMutationId }}\''
 	GH_REMOVE_REACTION=$'gh api graphql --silent --raw-field query=\'mutation($id: ID! $emoji: ReactionContent! ) { removeReaction(input: {subjectId: $id content: $emoji }) { clientMutationId }}\''
-	GH_COMMENTS_PREVIEW=$'printf "COMMENTER:\t%s\nDATE:\t\t%s\n%s" {3} {4..6} "$(gh api graphql --raw-field id={1} --raw-field query=\'query($id: ID!) {node(id: $id) {... on Comment {body} ... on Reactable { reactionGroups { content reactors { totalCount }}}}}\' --template \'{{ range .data.node.reactionGroups }}{{ $emoji := .content }}{{ if eq .content "CONFUSED" }}{{ $emoji = "😕" }}{{ else if eq .content "EYES" }}{{ $emoji = "👀" }}{{ else if eq .content "HEART" }}{{ $emoji = "❤️" }}{{ else if eq .content "HOORAY" }}{{ $emoji = "🎉" }}{{ else if eq .content "LAUGH" }}{{ $emoji = "😄" }}{{ else if eq .content "THUMBS_DOWN" }}{{ $emoji = "👎" }}{{ else if eq .content "THUMBS_UP" }}{{ $emoji = "👍" }}{{ else if eq .content "ROCKET" }}{{ $emoji = "🚀" }}{{ end }}{{ if gt .reactors.totalCount 0.0 }}{{ printf "%s %v  " $emoji .reactors.totalCount }}{{ end }}{{ end }}{{- tablerow "" -}}{{- tablerender -}}{{- tablerow "" -}}{{- tablerender -}}{{ .data.node.body}}\')" | '"$BAT_OR_CAT"
+	# Get the commenter's name and date, convert the emojis to real emojis, add the total number and list the first few names for each group, end the list with the commenter's actual message
+	GH_COMMENTS_PREVIEW=$'printf "COMMENTER:\t%s\nDATE:\t\t%s\n%s" {3} {4..6} "$(gh api graphql --raw-field id={1} --raw-field query=\'query($id: ID!) {node(id: $id) {... on Comment {body} ... on Reactable { reactionGroups { content viewerHasReacted reactors(first: 100) { nodes {... on User { login }} totalCount }}}}}\' --template \'{{ range .data.node.reactionGroups }}{{ $emoji := .content }}{{ if eq .content "CONFUSED" }}{{ $emoji = "😕" }}{{ else if eq .content "EYES" }}{{ $emoji = "👀" }}{{ else if eq .content "HEART" }}{{ $emoji = "❤️" }}{{ else if eq .content "HOORAY" }}{{ $emoji = "🎉" }}{{ else if eq .content "LAUGH" }}{{ $emoji = "😄" }}{{ else if eq .content "THUMBS_DOWN" }}{{ $emoji = "👎" }}{{ else if eq .content "THUMBS_UP" }}{{ $emoji = "👍" }}{{ else if eq .content "ROCKET" }}{{ $emoji = "🚀" }}{{ end }}{{ if gt .reactors.totalCount 0.0 }}{{ $emojiGiver := pluck "login" .reactors.nodes | join ", " | color "gray" }}{{ if gt (pluck "login" .reactors.nodes | len ) 3 }}{{- /* NOTE: number of names limited */ -}}{{ $emojiGiver = pluck "login" .reactors.nodes | join ", " | printf "%.25s..." | color "gray" }}{{end}}{{- $emojiTotal := .reactors.totalCount | color "white+b" -}}{{- if .viewerHasReacted -}}{{- $emojiTotal = .reactors.totalCount | color "yellow+bh" -}}{{- end -}}{{- printf "%s %v %s  " $emoji $emojiTotal $emojiGiver -}}{{- end -}}{{- end }}{{- tablerow "" -}}{{- tablerender -}}{{- tablerow "" -}}{{- tablerender -}}{{- .data.node.body -}}\')" | '"$BAT_OR_CAT"
 fi
 
 while [ $# -gt 0 ]; do
@@ -550,8 +552,8 @@ while [ $# -gt 0 ]; do
 				if [[ "CONFUSED EYES HEART HOORAY LAUGH THUMBS_DOWN THUMBS_UP ROCKET" =~ $OPTARG ]]; then
 					REACTION_EMOJI="$OPTARG"
 				else
+					gh api octocat
 					echo "!!! Search help, invalid emoji: $OPTARG"
-					gh api zen
 					exit 1
 				fi
 				;;
@@ -559,8 +561,8 @@ while [ $# -gt 0 ]; do
 				if [[ "$OPTARG" =~ ^[A-Za-z-]{7,}$ ]]; then
 					SORTING_ORDER="sort:$OPTARG"
 				else
+					gh api octocat
 					echo "Search help, invalid sort order: $OPTARG !!!"
-					gh api zen
 					exit 1
 				fi
 				;;
@@ -570,13 +572,13 @@ while [ $# -gt 0 ]; do
 				if [[ "$OPTARG" =~ ^[^:/]+/[^:/]+$ ]]; then
 					OWNER_REPO_NAME="$OPTARG"
 				else
+					gh api octocat
 					echo "!!! Respect the syntax: gh look {issue,pr} -R OWNER/REPO"
-					gh api zen
 					exit 1
 				fi
 				if ! gh api --silent repos/"$OWNER_REPO_NAME" 2>/dev/null; then
+					gh api octocat
 					echo "No GitHub repo called $OWNER_REPO_NAME !!!"
-					gh api zen
 					exit 1
 				fi
 				;;
@@ -613,8 +615,8 @@ while [ $# -gt 0 ]; do
 				fi
 				# gh api --silent users/... would be shorter, but would result in a false positive for organizations
 				if ! gh api graphql --silent --raw-field USER_NAME="$USER_NAME" --raw-field query=$'query ($USER_NAME: String!) { user(login: $USER_NAME) { login }}' 2>/dev/null; then
+					gh api octocat
 					echo "No USER called $USER_NAME !!!"
-					gh api zen
 					exit 1
 				fi
 				;;
