@@ -6,8 +6,10 @@ Drop an emoji, write comments, star repositories, read the preview or browse the
 ### Requirements
 Install [Fuzzy Finder (fzf)](https://github.com/junegunn/fzf#installation)  and the [GitHub command line tool (gh)](https://github.com/cli/cli#installation), for example through Homebrew.
 
+Optionally, you can also install [bat](https://github.com/sharkdp/bat#installation) to make the preview more beautiful.
+
 ```zsh
-brew install fzf gh
+brew install fzf gh bat
 
 # install this extension
 gh ext install LangLangBart/gh-look
