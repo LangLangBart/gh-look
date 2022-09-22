@@ -26,13 +26,13 @@ gh look [Command] [-Flags] [Search term]
 
 | Command | Description               |
 | :------ | :------------------------ |
-| issue   | List issues               |
-| pr      | List pull requests        |
+| issue   | List Issues               |
+| pr      | List Pull Requests        |
 | star    | List starred repositories |
 
 | Flags  | Description issue/ pr command                                                                                        | Example                      |
 | :----- | :------------------------------------------------------------------------------------------------------------------- | :--------------------------- |
-| <none> | List issues/ pull requests                                                                                           | gh look pr                   |
+| <none> | List Issues/ Pull Requests                                                                                           | gh look pr                   |
 | -c     | Cache the response, for example `30s`, `15m`, `1h` (default: `5m`)                                                   | gh look issue -c 15m         |
 | -e     | Emoji to make a reaction (default: THUMBS_UP 👍 ) {CONFUSED,EYES,HEART,HOORAY,LAUGH,THUMBS_DOWN,THUMBS_UP,ROCKET}     | gh look pr -e CONFUSED       |
 | -o     | sorting order (default: created-desc) {author-date,committer-date,created,interactions,reactions,updated}-{desc,asc} | gh look issue -o updated-asc |
