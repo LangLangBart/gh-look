@@ -33,6 +33,7 @@ gh look [Command] [-Flags] [Search term]
 | Flags  | Description issue/ pr command                                                                                        | Example                   |
 | :----- | :------------------------------------------------------------------------------------------------------------------- | :------------------------ |
 | <none> | List issues/ pull requests                                                                                           | gh look pr                |
+| -c     | Cache the response, for example `30s`, `15m`, `1h` (default: `5m`)                                                 | gh look issue -c 15m      |
 | -e     | Emoji to make a reaction (default: THUMBS_UP 👍 ) {CONFUSED,EYES,HEART,HOORAY,LAUGH,THUMBS_DOWN,THUMBS_UP,ROCKET}     | gh look issue -e CONFUSED |
 | -o     | sorting order (default: created-desc) {author-date,committer-date,created,interactions,reactions,updated}-{desc,asc} | gh look pr -o updated-asc |
 | -R     | Specify a repository (form: OWNER/REPO)                                                                              | gh look issue -R cli/cli  |
@@ -67,4 +68,4 @@ vale --minAlertLevel=suggestion .
 
 ### FAQ
 #### Strange icons
-The `Star` command uses some [nerd font](https://www.nerdfonts.com/cheat-sheet) icons, such as the GitHub and Python logos. If you see some "strange" icons, follow the steps here to install a better font: [powerlevel10k#fonts](https://github.com/romkatv/powerlevel10k#fonts)
+The `star` command uses some [nerd font](https://www.nerdfonts.com/cheat-sheet) icons, such as the GitHub and Python logos. If you see some "strange" icons, follow the steps here to install a better font: [powerlevel10k#fonts](https://github.com/romkatv/powerlevel10k#fonts)
