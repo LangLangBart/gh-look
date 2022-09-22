@@ -58,7 +58,7 @@ Head  │ Description
 HotKeys  │ Description
 ─────────│───────────────
 <search> │ https://docs.github.com/en/search-github/searching-on-github
-         │  (Example: sort:reactions is:closed author:@me Autobahn)
+         │  (Example: sort:reactions is:closed involves:@me Autobahn)
 ?        │ Toggle help
 enter    │ See comments
 tab      │ Toggle issue preview
@@ -84,7 +84,7 @@ _fzf_issue() {
 	GH_ISSUE_COMMAND=$'gh api graphql --raw-field query=\'query($filter: String!) {search(query: $filter, type: ISSUE, first: 35) {issueCount nodes { ... on Issue { author { login } comments {totalCount} id number updatedAt reactions { totalCount viewerHasReacted } state title viewerCanReact viewerDidAuthor }}}}\' --template \'
 		{{- $limitCount := .data.search.issueCount -}}
 			{{- if gt .data.search.issueCount 35.0 -}}{{- $limitCount = 35.0 -}}{{- end -}}
-		{{- tablerow "NODE_ID_HIDDEN" (printf "%.0f of ∑ %.0f Issues" $limitCount .data.search.issueCount | color "blue+b") ("|" | color "white+d") ("? - Toggle Help" | color "blue+d") -}}{{- tablerender -}}
+		{{- tablerow "NODE_ID_HIDDEN" (printf "%.0f of ∑ %.0f Issues ◉" $limitCount .data.search.issueCount | color "blue+b") ("|" | color "white+d") ("? - Toggle Help" | color "blue+d") -}}{{- tablerender -}}
 		{{- tablerow "" -}}{{- tablerender -}}
 		{{- $headerColor := "blue+bd" -}}
 			{{- tablerow "NODE_ID_HIDDEN" ("ISSUE" | color $headerColor) ("AUTHOR" | color $headerColor) ("LAST UPDATE" | color $headerColor) "💬" "📣" ("TITLE" | color $headerColor) -}}
@@ -270,7 +270,7 @@ Head  │ Description
 HotKeys  │ Description
 ─────────│───────────────
 <search> │ https://docs.github.com/en/search-github/searching-on-github
-         │  (Example: sort:reactions is:closed author:@me Autobahn)
+         │  (Example: sort:reactions is:closed involves:@me Autobahn)
 ?        │ Toggle help
 enter    │ See comments
 tab      │ Toggle pull request preview
@@ -296,7 +296,7 @@ _fzf_pr() {
 	GH_PR_COMMAND=$'gh api graphql --raw-field query=\'query($filter: String!) {search(query: $filter, type: ISSUE, first: 35) {issueCount nodes { ... on PullRequest { additions author { login } comments {totalCount} deletions id number updatedAt reactions { totalCount viewerHasReacted } state title viewerCanReact viewerDidAuthor }}}}\' --template \'
 		{{- $limitCount := .data.search.issueCount -}}
 			{{- if gt .data.search.issueCount 35.0 -}}{{- $limitCount = 35.0 -}}{{- end -}}
-		{{- tablerow "NODE_ID_HIDDEN" (printf "%.0f of ∑ %.0f Pull requests" $limitCount .data.search.issueCount | color "blue+b") ("|" | color "white+d") ("? - Toggle Help" | color "blue+d") -}}{{- tablerender -}}
+		{{- tablerow "NODE_ID_HIDDEN" (printf "%.0f of ∑ %.0f Pull requests ╫" $limitCount .data.search.issueCount | color "blue+b") ("|" | color "white+d") ("? - Toggle Help" | color "blue+d") -}}{{- tablerender -}}
 		{{- tablerow "" -}}{{- tablerender -}}
 		{{- $headerColor := "blue+bd" -}}
 			{{- tablerow "NODE_ID_HIDDEN" ("PR" | color $headerColor) ("AUTHOR" | color $headerColor) ("LAST UPDATE" | color $headerColor) "💬" "📣" ("+" | color "green+bd") ("-" | color "red+bd") ("TITLE" | color $headerColor) -}}
@@ -445,6 +445,7 @@ gh look star [-Flags] [Search term]
 Flags  │ Description
 ───────│───────────────
 <none> │ List your stars (sorted by the time the user set the star)
+-c     │ Cache the response, for example "30s", "15m", "1h" (default: 5m)
 -U     │ List stars of another user
 -w     │ Display the preview window upon start (default: hidden)
 
@@ -458,7 +459,8 @@ HotKeys  │ Description
 ?        │ Toggle help
 tab      │ Preview README
 ctrl+b   │ Browser
-ctrl+r   │ Preview release infos
+ctrl+r   │ Reload
+ctrl+f   │ Preview release infos
 ctrl+t   │ Star repo (useful for stars of another user)
 ctrl+u   │ Unstar repo
 esc      │ Exit"'
@@ -495,7 +497,8 @@ _fzf_star() {
 		--bind "?:toggle-preview+change-preview:$HELP_STAR_SECTION" \
 		--bind 'tab:toggle-preview+change-preview(gh repo view {1})' \
 		--bind "ctrl-b:execute-silent(gh repo view {1} --web)" \
-		--bind $'ctrl-r:toggle-preview+change-preview([[ $(gh release list -R {1}) ]] && gh release view -R {1})' \
+		--bind $'ctrl-f:toggle-preview+change-preview([[ $(gh release list -R {1}) ]] && gh release view -R {1})' \
+		--bind $'ctrl-r:reload(eval "$FZF_DEFAULT_COMMAND" --cache 0s)' \
 		--bind $'ctrl-t:execute-silent(gh api --method PUT user/starred/{1})+reload(eval "$FZF_DEFAULT_COMMAND" --cache 0s)' \
 		--bind $'ctrl-u:execute-silent(gh api --method DELETE user/starred/{1})+reload(eval "$FZF_DEFAULT_COMMAND" --cache 0s)'
 }
@@ -630,8 +633,17 @@ while [ $# -gt 0 ]; do
 		;;
 	star)
 		shift
-		while getopts :U:w flag; do
+		while getopts :c:U:w flag; do
 			case "$flag" in
+			c)
+				if [[ "$OPTARG" =~ ^[0-9]+[smh]$ ]]; then
+					CACHE_TIME="$OPTARG"
+				else
+					gh api octocat
+					echo "Search help, invalid cache time: $OPTARG !!!"
+					exit 1
+				fi
+				;;
 			U)
 				# local syntax test first to fail fast, and then gh api test
 				if [[ "$OPTARG" =~ ^[^:/]+$ ]]; then
