@@ -68,5 +68,5 @@ vale --minAlertLevel=suggestion .
 * An optional installation of the [Vale extension](https://marketplace.visualstudio.com/items?itemName=errata-ai.vale-server) to display warnings and errors at once.
 
 ### FAQ
-#### Strange icons
-The `star` command uses some [nerd font](https://www.nerdfonts.com/cheat-sheet) icons, such as the GitHub and Python logos. If you see some "strange" icons, follow the steps here to install a better font: [powerlevel10k#fonts](https://github.com/romkatv/powerlevel10k#fonts)
+#### Icons
+[NERD FONT](https://www.nerdfonts.com/cheat-sheet) icons are being used. If you see some "strange" icons, follow the steps here to install a better font: [powerlevel10k#fonts](https://github.com/romkatv/powerlevel10k#fonts)
