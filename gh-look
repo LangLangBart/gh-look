@@ -113,7 +113,7 @@ _fzf_issue() {
 
 	INITIAL_ISSUE_PROMPT=$(grep -q A <"$SCRATCH_FILE" && printf "Issues ◉ [%s] > " "$OWNER_REPO_NAME" || printf "\e[1;92mOPEN Issues ◉ [%s] > " "$OWNER_REPO_NAME")
 
-	ISSUE_OUTPUT=$(FZF_DEFAULT_COMMAND="(grep -q A <$SCRATCH_FILE && $GH_ISSUE_COMMAND --cache $CACHE_TIME --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME $INITIAL_QUERY \" || $GH_ISSUE_COMMAND --cache $CACHE_TIME --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME state:open $INITIAL_QUERY \") || true" \
+	ISSUE_OUTPUT=$(FZF_DEFAULT_COMMAND="(grep -q A <$SCRATCH_FILE && $GH_ISSUE_COMMAND --cache ${1:-$CACHE_TIME} --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME $INITIAL_QUERY \" || $GH_ISSUE_COMMAND --cache ${1:-$CACHE_TIME} --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME state:open $INITIAL_QUERY \") || true" \
 		_fzf_basic_options --disabled --header-lines 3 --with-nth 2.. \
 		--prompt "$INITIAL_ISSUE_PROMPT" \
 		--query "$INITIAL_QUERY" --preview "sleep 0.35; $GH_ISSUE_PREVIEW | $BAT_OR_CAT" \
@@ -134,17 +134,17 @@ _fzf_issue() {
 	ctrl-e)
 		gh issue edit "$ISSUE_NUMBER" --repo "$OWNER_REPO_NAME"
 		_load_indicator "Restarting ..." 0.25
-		_fzf_issue
+		_fzf_issue 0s
 		;;
 	ctrl-n)
 		gh issue create --repo "$OWNER_REPO_NAME"
 		_load_indicator "Restarting ..." 0.25
-		_fzf_issue
+		_fzf_issue 0s
 		;;
 	ctrl-x)
 		gh issue comment "$ISSUE_NUMBER" --repo "$OWNER_REPO_NAME"
 		_load_indicator "Restarting ..." 0.25
-		_fzf_issue
+		_fzf_issue 0s
 		;;
 	enter) _fzf_issue_comment ;;
 	shift-right)
@@ -205,7 +205,7 @@ esc      │ Return to Issue list"'
 			{{- tablerow .id .databaseId ($author | color $authorColor) (timeago .createdAt) ($emojiCount | color $emojiColor) .body -}}
 		{{- end -}}\''
 
-	ISSUE_COMMENT_OUTPUT=$(FZF_DEFAULT_COMMAND="$GH_ISSUE_COMMENTS_COMMAND --cache $CACHE_TIME --raw-field owner=${OWNER_REPO_NAME%/*} --raw-field name=${OWNER_REPO_NAME#*/} --field number=$ISSUE_NUMBER" \
+	ISSUE_COMMENT_OUTPUT=$(FZF_DEFAULT_COMMAND="$GH_ISSUE_COMMENTS_COMMAND --cache ${1:-$CACHE_TIME} --raw-field owner=${OWNER_REPO_NAME%/*} --raw-field name=${OWNER_REPO_NAME#*/} --field number=$ISSUE_NUMBER" \
 		_fzf_basic_options --header-lines 5 --with-nth 3.. \
 		--prompt $'\e[1;94m'"Issue 💬 [$OWNER_REPO_NAME] > " \
 		--preview-window "+5:~5" --preview "$GH_COMMENTS_PREVIEW | $BAT_OR_CAT" \
@@ -220,12 +220,12 @@ esc      │ Return to Issue list"'
 	ctrl-n)
 		gh issue create --repo "$OWNER_REPO_NAME"
 		_load_indicator "Restarting ..." 0.25
-		_fzf_issue
+		_fzf_issue 0s
 		;;
 	ctrl-x)
 		gh issue comment "$ISSUE_NUMBER" --repo "$OWNER_REPO_NAME"
 		_load_indicator "Restarting ..." 0.25
-		_fzf_issue_comment
+		_fzf_issue_comment 0s
 		;;
 	ctrl-z)
 		printf "\n%s\n\nCONFIRM DELETION (Y/n) " "$(sed 1d <<<"${ISSUE_COMMENT_OUTPUT}" | awk '{$1=$2=""; print $0}')"
@@ -235,7 +235,7 @@ esc      │ Return to Issue list"'
 		if [[ "$CONFIRM" = "y" ]]; then
 			gh api graphql --silent --raw-field id="$(sed 1d <<<"${ISSUE_COMMENT_OUTPUT}" | awk '{print $1}')" --raw-field query=$'mutation($id: ID!) { deleteIssueComment(input: {id: $id}) { clientMutationId }}' 2>/dev/null && printf "\n🟢 Success.... comment deleted\n" || printf "\n🛑 Missing permissions to delete this comment. !!!\n"
 			_load_indicator "Restarting ..." 0.25
-			_fzf_issue
+			_fzf_issue 0s
 		else
 			printf "\nDiscarding... comment was not delted !!!"
 			_load_indicator "Restarting ..." 0.25
@@ -329,7 +329,7 @@ _fzf_pr() {
 
 	INITIAL_PR_PROMPT=$(grep -q A <"$SCRATCH_FILE" && printf "Pull Requests  [%s] > " "$OWNER_REPO_NAME" || printf "\e[1;92mOPEN Pull Requests  [%s] > " "$OWNER_REPO_NAME")
 
-	PR_OUTPUT=$(FZF_DEFAULT_COMMAND="(grep -q A <$SCRATCH_FILE && $GH_PR_COMMAND --cache $CACHE_TIME --raw-field filter=\"$SORTING_ORDER type:pr repo:$OWNER_REPO_NAME $INITIAL_QUERY \" || $GH_PR_COMMAND --cache $CACHE_TIME --raw-field filter=\"$SORTING_ORDER type:pr repo:$OWNER_REPO_NAME state:open $INITIAL_QUERY \") || true" \
+	PR_OUTPUT=$(FZF_DEFAULT_COMMAND="(grep -q A <$SCRATCH_FILE && $GH_PR_COMMAND --cache ${1:-$CACHE_TIME} --raw-field filter=\"$SORTING_ORDER type:pr repo:$OWNER_REPO_NAME $INITIAL_QUERY \" || $GH_PR_COMMAND --cache ${1:-$CACHE_TIME} --raw-field filter=\"$SORTING_ORDER type:pr repo:$OWNER_REPO_NAME state:open $INITIAL_QUERY \") || true" \
 		_fzf_basic_options --disabled --header-lines 3 --with-nth 2.. \
 		--prompt "$INITIAL_PR_PROMPT" \
 		--query "$INITIAL_QUERY" --preview "sleep 0.35; $GH_PR_PREVIEW | $BAT_OR_CAT" \
@@ -351,7 +351,7 @@ _fzf_pr() {
 	ctrl-e)
 		gh pr edit "$PR_NUMBER" --repo "$OWNER_REPO_NAME"
 		_load_indicator "Restarting ..." 0.25
-		_fzf_pr
+		_fzf_pr 0s
 		;;
 	ctrl-g)
 		gh pr merge "$PR_NUMBER" --repo "$OWNER_REPO_NAME"
@@ -360,7 +360,7 @@ _fzf_pr() {
 	ctrl-x)
 		gh pr comment "$PR_NUMBER" --repo "$OWNER_REPO_NAME"
 		_load_indicator "Restarting ..." 0.25
-		_fzf_pr
+		_fzf_pr 0s
 		;;
 	ctrl-y)
 		gh pr checkout "$PR_NUMBER" --repo "$OWNER_REPO_NAME"
@@ -421,7 +421,7 @@ esc      │ Return to Pull Request list"'
 			{{- tablerow .id .databaseId ($author | color $authorColor) (timeago .createdAt) ($emojiCount | color $emojiColor) .body -}}
 		{{- end -}}\''
 
-	PR_COMMENT_OUTPUT=$(FZF_DEFAULT_COMMAND="$GH_PR_COMMENTS_COMMAND --cache $CACHE_TIME --raw-field owner=${OWNER_REPO_NAME%/*} --raw-field name=${OWNER_REPO_NAME#*/} --field number=$PR_NUMBER" \
+	PR_COMMENT_OUTPUT=$(FZF_DEFAULT_COMMAND="$GH_PR_COMMENTS_COMMAND --cache ${1:-$CACHE_TIME} --raw-field owner=${OWNER_REPO_NAME%/*} --raw-field name=${OWNER_REPO_NAME#*/} --field number=$PR_NUMBER" \
 		_fzf_basic_options --header-lines 5 --with-nth 3.. \
 		--prompt $'\e[1;94m'"Pull Request 💬 [$OWNER_REPO_NAME] > " \
 		--preview-window "+5:~5" --preview "$GH_COMMENTS_PREVIEW | $BAT_OR_CAT" \
@@ -437,7 +437,7 @@ esc      │ Return to Pull Request list"'
 	ctrl-x)
 		gh issue comment "$PR_NUMBER" --repo "$OWNER_REPO_NAME"
 		_load_indicator "Restarting ..." 0.25
-		_fzf_pr_comment
+		_fzf_pr_comment 0s
 		;;
 	esc) _fzf_pr ;;
 	esac
