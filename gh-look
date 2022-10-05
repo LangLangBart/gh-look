@@ -513,7 +513,7 @@ _fzf_star() {
 				{{- else if eq .stargazerCount 0.0 -}}{{- $stargazerCount = "" -}}
 			{{- end -}}
 		{{- $stargazerColor := "yellow" -}}
-			{{- if .viewerHasStarred }}{{ $stargazerColor = "black+b:yellow" }}{{ end -}}
+			{{- if .viewerHasStarred }}{{ $stargazerColor = "011+h:094" }}{{ end -}}
 		{{- $langName := "" -}}
 			{{- if .primaryLanguage }}{{ $langName = .primaryLanguage.name }}{{ end -}}
 			{{- if eq $langName "JavaScript" }}{{- $langName = "" -}}
