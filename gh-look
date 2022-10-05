@@ -66,6 +66,7 @@ ctrl+a      │ ALL Issues
 ctrl+b      │ Browser
 ctrl+e      │ Edit an Issue
 ctrl+f      │ Fuzzy search
+ctrl+g      │ Close Issue after confirmation
 ctrl+n      │ New Issue
 ctrl+o      │ OPEN Issues only
 ctrl+r      │ Reload
@@ -127,7 +128,7 @@ _fzf_issue() {
 		--bind "ctrl-r:reload:(grep -q A <$SCRATCH_FILE && $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME \"{q} || $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME state:open \"{q}) || true" \
 		--bind "ctrl-t:execute-silent($GH_ADD_REACTION --raw-field id={1} --raw-field emoji=$REACTION_EMOJI)+reload:(grep -q A <$SCRATCH_FILE && $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME \"{q} || $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME state:open \"{q}) || true" \
 		--bind "ctrl-u:execute-silent($GH_REMOVE_REACTION --raw-field id={1} --raw-field emoji=$REACTION_EMOJI)+reload:(grep -q A <$SCRATCH_FILE && $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME \"{q} || $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME state:open \"{q}) || true" \
-		--expect "ctrl-e,ctrl-n,ctrl-x,enter,shift-right")
+		--expect "ctrl-e,ctrl-g,ctrl-n,ctrl-x,enter,shift-right")
 
 	ISSUE_NUMBER=$(sed 1d <<<"${ISSUE_OUTPUT}" | awk '{print $2}' | tr -d "#")
 	case $(sed 1q <<<"${ISSUE_OUTPUT}") in
@@ -135,6 +136,30 @@ _fzf_issue() {
 		gh issue edit "$ISSUE_NUMBER" --repo "$OWNER_REPO_NAME"
 		_load_indicator "Restarting ..." 0.25
 		_fzf_issue 0s
+		;;
+	ctrl-g)
+		printf "\n%s\n\nCONFIRM CLOSURE (Y/n) " "$(sed 1d <<<"${ISSUE_OUTPUT}" | awk '{$1=""; print $0}')"
+		stty raw -echo
+		CONFIRM=$(dd bs=1 count=1 2>/dev/null)
+		stty sane
+		if [[ "$CONFIRM" = "y" ]]; then
+			printf "\n\nDo you want to add a comment??? (Y/n) "
+			stty raw -echo
+			CONFIRM=$(dd bs=1 count=1 2>/dev/null)
+			stty sane
+			if [[ "$CONFIRM" = "y" ]]; then
+				read -rp "Enter a comment: " MESSAGE
+				gh issue close "$ISSUE_NUMBER" --repo "$OWNER_REPO_NAME" --comment "$MESSAGE" 2>/dev/null && printf "\n🟢 Success.... Issue closed\n" || printf "\n🛑 Missing permissions to close this Issue. !!!\n"
+			else
+				gh issue close "$ISSUE_NUMBER" --repo "$OWNER_REPO_NAME" 2>/dev/null && printf "\n🟢 Success.... Issue closed\n" || printf "\n🛑 Missing permissions to close this Issue. !!!\n"
+			fi
+			_load_indicator "Restarting ..." 0.25
+			_fzf_issue 0s
+		else
+			printf "\nDiscarding... Issue was not closed !!!"
+			_load_indicator "Restarting ..." 0.25
+			_fzf_issue_comment
+		fi
 		;;
 	ctrl-n)
 		gh issue create --repo "$OWNER_REPO_NAME"
