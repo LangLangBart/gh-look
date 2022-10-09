@@ -618,7 +618,7 @@ while [ $# -gt 0 ]; do
 				;;
 			R)
 				# local syntax test first to fail fast, and then gh api test
-				# curl is faster, but has a small rate limit without authentication
+				# curl is faster, but unauthenticated API requests to GitHub are capped at 60 per hour. Authenticated API requests 5000 per hour.
 				if [[ "$OPTARG" =~ ^[^:/]+/[^:/]+$ ]]; then
 					OWNER_REPO_NAME="$OPTARG"
 				else
