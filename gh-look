@@ -158,7 +158,7 @@ _fzf_issue() {
 		else
 			printf "\nDiscarding... Issue was not closed !!!"
 			_load_indicator "Restarting ..." 0.25
-			_fzf_issue_comment
+			_fzf_issue
 		fi
 		;;
 	ctrl-n)
