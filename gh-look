@@ -94,7 +94,7 @@ _fzf_issue() {
 			{{- $author := "[DELETED_USER]" -}}
 				{{- if .author -}}{{- $author = .author.login -}}{{- end -}}
 			{{- $authorColor := "cyan+h" -}}
-				{{- if .viewerDidAuthor -}}{{- $authorColor = "yellow+b" -}}{{- end -}}
+				{{- if .viewerDidAuthor -}}{{- $authorColor = "yellow" -}}{{- end -}}
 			{{- $commentCount := "\u00a0" -}}{{- /* NOTE: U+00a0 (non-breaking space) for entries without comments, which the viewer can comment on. Needed to make a if decision with fzf later in the script. */ -}}
 				{{- if not .viewerCanReact -}}{{- $commentCount = (or (printf "%.0f" .comments.totalCount) "0")  -}}
 					{{- else if .comments.totalCount -}}{{- $commentCount = printf "%.0f" .comments.totalCount -}}
@@ -219,7 +219,7 @@ esc      │ Return to Issue list"'
 			{{- $author := "[DELETED_USER]" -}}
 				{{- if .author -}}{{- $author = .author.login -}}{{- end -}}
 			{{- $authorColor := "cyan+h" -}}
-				{{- if .viewerDidAuthor -}}{{- $authorColor = "yellow+b" -}}{{- end -}}
+				{{- if .viewerDidAuthor -}}{{- $authorColor = "yellow" -}}{{- end -}}
 			{{- $emojiCount := "" -}}
 				{{- if not .viewerCanReact -}}{{- $emojiCount = (or (printf "%.0f" .reactions.totalCount) "0")  -}}
 					{{- else if .reactions.totalCount -}}{{- $emojiCount = printf "%.0f" .reactions.totalCount -}}
@@ -335,7 +335,7 @@ _fzf_pr() {
 			{{- $author := "[DELETED_USER]" -}}
 				{{- if .author -}}{{- $author = .author.login -}}{{- end -}}
 			{{- $authorColor := "cyan+h" -}}
-				{{- if .viewerDidAuthor -}}{{- $authorColor = "yellow+b" -}}{{- end -}}
+				{{- if .viewerDidAuthor -}}{{- $authorColor = "yellow" -}}{{- end -}}
 			{{- $commentCount := "\u00a0" -}}{{- /* NOTE: U+00a0 (non-breaking space) for entries without comments, which the viewer can comment on. Needed to make a if decision with fzf later in the script. */ -}}
 				{{- if not .viewerCanReact -}}{{- $commentCount = (or (printf "%.0f" .comments.totalCount) "0")  -}}
 					{{- else if .comments.totalCount -}}{{- $commentCount = printf "%.0f" .comments.totalCount -}}
@@ -436,7 +436,7 @@ esc      │ Return to Pull Request list"'
 			{{- $author := "[DELETED_USER]" -}}
 				{{- if .author -}}{{- $author = .author.login -}}{{- end -}}
 			{{- $authorColor := "cyan+h" -}}
-				{{- if .viewerDidAuthor -}}{{- $authorColor = "yellow+b" -}}{{- end -}}
+				{{- if .viewerDidAuthor -}}{{- $authorColor = "yellow" -}}{{- end -}}
 			{{- $emojiCount := "" -}}
 				{{- if not .viewerCanReact -}}{{- $emojiCount = (or (printf "%.0f" .reactions.totalCount) "0")  -}}
 					{{- else if .reactions.totalCount -}}{{- $emojiCount = printf "%.0f" .reactions.totalCount -}}
