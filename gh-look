@@ -523,7 +523,7 @@ _fzf_star() {
 			{{- if .pushedAt -}}{{- $time = (timeago .pushedAt) -}}{{- end -}}
 		{{- tablerow (.nameWithOwner | color "cyan+h") ($stargazerCount | color $stargazerColor) ($langName | color "green") ($time | color "gray+h") .description -}}
 		{{- end -}}\''" --raw-field USER_NAME=$USER_NAME --cache $CACHE_TIME" \
-		_fzf_basic_options --ansi --no-multi --nth 1,3,7.. \
+		_fzf_basic_options --nth 1,3,7.. \
 		--prompt $'\e[1;93mSearch  stars'" [$USER_NAME] > " --header "" --header-lines 3 \
 		--preview "gh repo view {1}" --preview-window wrap:"$PREVIEW_WINDOW_VISIBILITY" \
 		--query "$INITIAL_QUERY" --exact \
@@ -555,6 +555,15 @@ PR_COMMENT_OUTPUT=""
 BAT_OR_CAT="cat"
 # for better speed
 CACHE_TIME="5m"
+
+GH_ADD_REACTION=$'gh api graphql --silent --raw-field query=\'mutation($id: ID! $emoji: ReactionContent! ) { addReaction(input: {subjectId: $id content: $emoji }) { clientMutationId }}\''
+GH_REMOVE_REACTION=$'gh api graphql --silent --raw-field query=\'mutation($id: ID! $emoji: ReactionContent! ) { removeReaction(input: {subjectId: $id content: $emoji }) { clientMutationId }}\''
+
+# Get the name and date of the commenter, convert the emojis to real emojis, add the total number next to it. Highlight if the viewer has used it.
+# Get the last 4 emoji reactor names for each group,
+# based on the length of the array of reactor names, either print or slice 1 and add a ", ..." as an indicator of more than three
+# End the list with the commenter's actual message.
+GH_COMMENTS_PREVIEW=$'gh api graphql --raw-field id={1} --raw-field query=\'query($id: ID! ){node(id: $id) {... on Comment { author{login} body createdAt viewerDidAuthor} ... on Reactable { reactionGroups { content viewerHasReacted reactors(last: 4) { nodes {... on User { login }} totalCount }}}}}\' --template \'{{- $prefix := .data.node -}}{{- $author := "[DELETED_USER]" -}}{{- if $prefix.author -}}{{- $author = $prefix.author.login -}}{{- end -}}{{- $authorColor := "cyan+hb" -}}{{- if $prefix.viewerDidAuthor -}}{{- $authorColor = "yellow+bh" -}}{{- end -}}{{- tablerow  ("◥■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■◤"| color "gray+d") -}}{{- tablerender -}}{{- tablerow ($author | color $authorColor) (timeago $prefix.createdAt | color "white+bh") -}}{{- tablerender -}}{{- range $prefix.reactionGroups -}}{{ $emoji := .content }}{{ if eq .content "CONFUSED" }}{{ $emoji = "😕" }}{{ else if eq .content "EYES" }}{{ $emoji = "👀" }}{{ else if eq .content "HEART" }}{{ $emoji = "💖" }}{{ else if eq .content "HOORAY" }}{{ $emoji = "🎉" }}{{ else if eq .content "LAUGH" }}{{ $emoji = "😄" }}{{ else if eq .content "THUMBS_DOWN" }}{{ $emoji = "👎" }}{{ else if eq .content "THUMBS_UP" }}{{ $emoji = "👍" }}{{ else if eq .content "ROCKET" }}{{ $emoji = "🚀" }}{{ end }}{{ if gt .reactors.totalCount 0.0 }}{{ $emojiGiver := pluck "login" .reactors.nodes | join ", " | color "green+d" }}{{ if gt (pluck "login" .reactors.nodes | len ) 3 }}{{- /* NOTE: number of names limited */ -}}{{ $emojiGiver = slice (pluck "login" .reactors.nodes) 1 | join ", " | printf "%s, ..." | color "green+d" }}{{end}}{{- $emojiTotal := .reactors.totalCount | color "green+bd" -}}{{- if .viewerHasReacted -}}{{- $emojiTotal = .reactors.totalCount | color "yellow+bh" -}}{{- end -}}{{- tablerow (printf "%s %s" $emojiTotal $emoji) $emojiGiver -}}{{- tablerender -}}{{- end -}}{{- end }}{{- tablerow  ("‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥"| color "gray+d") -}}{{- tablerender -}}{{- tablerow "" -}}{{- tablerender -}}{{- $prefix.body -}}\''
 
 if [ $# = 0 ]; then
 	bash -c "$HELP_GENERAL"
@@ -646,17 +655,10 @@ while [ $# -gt 0 ]; do
 		if [ -z "$OWNER_REPO_NAME" ]; then
 			# if the OWNER_REPO_NAME is not set yet, check if the repo has a remote and assign the variable
 			git ls-remote --get-url 2>/dev/null 1>&2 || exit 1
+			# local alternative, but requires Perl-compatible regular expressions (PCREs)
+			# git remote -v | grep -m 1 -oP '(?<=\:).+(?=\.)'
 			OWNER_REPO_NAME="$(gh api graphql --cache 1h --field owner=:owner --field name=:repo --raw-field query=$'query ($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { nameWithOwner }}' --jq '.[].repository.nameWithOwner')"
 		fi
-
-		GH_ADD_REACTION=$'gh api graphql --silent --raw-field query=\'mutation($id: ID! $emoji: ReactionContent! ) { addReaction(input: {subjectId: $id content: $emoji }) { clientMutationId }}\''
-		GH_REMOVE_REACTION=$'gh api graphql --silent --raw-field query=\'mutation($id: ID! $emoji: ReactionContent! ) { removeReaction(input: {subjectId: $id content: $emoji }) { clientMutationId }}\''
-
-		# Get the name and date of the commenter, convert the emojis to real emojis, add the total number next to it. Highlight if the viewer has used it.
-		# Get the last 4 emoji reactor names for each group,
-		# based on the length of the array of reactor names, either print or slice 1 and add a ", ..." as an indicator of more than three
-		# End the list with the commenter's actual message.
-		GH_COMMENTS_PREVIEW=$'gh api graphql --raw-field id={1} --raw-field query=\'query($id: ID! ){node(id: $id) {... on Comment { author{login} body createdAt viewerDidAuthor} ... on Reactable { reactionGroups { content viewerHasReacted reactors(last: 4) { nodes {... on User { login }} totalCount }}}}}\' --template \'{{- $prefix := .data.node -}}{{- $author := "[DELETED_USER]" -}}{{- if $prefix.author -}}{{- $author = $prefix.author.login -}}{{- end -}}{{- $authorColor := "cyan+hb" -}}{{- if $prefix.viewerDidAuthor -}}{{- $authorColor = "yellow+bh" -}}{{- end -}}{{- tablerow  ("◥■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■◤"| color "gray+d") -}}{{- tablerender -}}{{- tablerow ($author | color $authorColor) (timeago $prefix.createdAt | color "white+bh") -}}{{- tablerender -}}{{- range $prefix.reactionGroups -}}{{ $emoji := .content }}{{ if eq .content "CONFUSED" }}{{ $emoji = "😕" }}{{ else if eq .content "EYES" }}{{ $emoji = "👀" }}{{ else if eq .content "HEART" }}{{ $emoji = "💖" }}{{ else if eq .content "HOORAY" }}{{ $emoji = "🎉" }}{{ else if eq .content "LAUGH" }}{{ $emoji = "😄" }}{{ else if eq .content "THUMBS_DOWN" }}{{ $emoji = "👎" }}{{ else if eq .content "THUMBS_UP" }}{{ $emoji = "👍" }}{{ else if eq .content "ROCKET" }}{{ $emoji = "🚀" }}{{ end }}{{ if gt .reactors.totalCount 0.0 }}{{ $emojiGiver := pluck "login" .reactors.nodes | join ", " | color "green+d" }}{{ if gt (pluck "login" .reactors.nodes | len ) 3 }}{{- /* NOTE: number of names limited */ -}}{{ $emojiGiver = slice (pluck "login" .reactors.nodes) 1 | join ", " | printf "%s, ..." | color "green+d" }}{{end}}{{- $emojiTotal := .reactors.totalCount | color "green+bd" -}}{{- if .viewerHasReacted -}}{{- $emojiTotal = .reactors.totalCount | color "yellow+bh" -}}{{- end -}}{{- tablerow (printf "%s %s" $emojiTotal $emoji) $emojiGiver -}}{{- tablerender -}}{{- end -}}{{- end }}{{- tablerow  ("‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥"| color "gray+d") -}}{{- tablerender -}}{{- tablerow "" -}}{{- tablerender -}}{{- $prefix.body -}}\''
 
 		grep -q "issue" <<<"$COMMAND_ARG" && _fzf_issue
 		grep -q "pr" <<<"$COMMAND_ARG" && _fzf_pr
