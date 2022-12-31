@@ -20,7 +20,7 @@ _load_indicator() {
 # Redefine this function to change the options
 # https://github.com/junegunn/fzf-git.sh/blob/main/fzf-git.sh#L104
 _fzf_basic_options() {
-	GH_FORCE_TTY=200% fzf -- \
+	GH_FORCE_TTY=100% fzf -- \
 		--ansi --layout reverse --info inline --no-multi --height 100% \
 		--header '' --ellipsis '' --border horizontal \
 		--preview-window "$PREVIEW_WINDOW_VISIBILITY:wrap:right:50%:border-left" "$@"
@@ -34,6 +34,7 @@ Command │ Description
 ────────│───────────────
 issue   │ List Issues
 pr      │ List Pull Requests
+search  │ Search for GitHub repos
 star    │ List starred repositories"'
 
 HELP_ISSUE_SECTION='cat <<<"
@@ -47,7 +48,7 @@ Flags  │ Description
        │  {CONFUSED,EYES,HEART,HOORAY,LAUGH,THUMBS_DOWN,THUMBS_UP,ROCKET}
 -o     │ sorting order of Issues (default: created-desc)
        │  {author-date,committer-date,created,interactions,reactions,updated}-{desc,asc}
--R     │ Specify a repository (form: OWNER/REPO)
+-r     │ Specify a repository (form: OWNER/REPO)
 -w     │ Display the preview window upon start (default: hidden)
 
 Head  │ Description
@@ -285,7 +286,7 @@ Flags  │ Description
        │  {CONFUSED,EYES,HEART,HOORAY,LAUGH,THUMBS_DOWN,THUMBS_UP,ROCKET}
 -o     │ sorting order of Pull Requests (default: created-desc)
        │  {author-date,committer-date,created,interactions,reactions,updated}-{desc,asc}
--R     │ Specify a repo (form: OWNER/REPO)
+-r     │ Specify a repo (form: OWNER/REPO)
 -w     │ Display the preview window upon start (default: hidden)
 
 Head  │ Description
@@ -470,6 +471,87 @@ esc      │ Return to Pull Request list"'
 	esac
 }
 
+###################################### SEARCH
+
+HELP_SEARCH_SECTION='cat <<<"
+gh look search [-Flags] [Search term]
+
+Flags  │ Description
+───────│───────────────
+<term> │ Search for GitHub repos
+-c     │ Cache the response, for example "30s", "15m", "1h" (default: 5m)
+-w     │ Display the preview window upon start (default: hidden)
+
+Head │ Description
+─────│───────────────
+⭐   │ Number of stargazers
+🏁   │ Primary language
+
+HotKeys   │ Description
+──────────│───────────────
+?         │ Toggle help
+tab       │ Preview README
+shift+tab │ Switch to Issues
+ctrl+b    │ Browser
+ctrl+f    │ Preview release infos
+ctrl+r    │ Reload
+ctrl+t    │ Star repo
+ctrl+u    │ Unstar repo
+ctrl+x    │ Clone repo
+esc       │ Exit"'
+
+_fzf_search() {
+
+	GH_SEARCH=$'gh api graphql --raw-field query=\'query($filter: String!) { search(query: $filter, type: REPOSITORY, first: 25) { repositoryCount nodes { ... on Repository {description isFork name owner {login} primaryLanguage {name} pushedAt stargazerCount viewerHasStarred}}}}\' --template=\'
+		{{- $limitCount := .data.search.repositoryCount -}}
+			{{- if gt .data.search.repositoryCount 25.0 -}}{{- $limitCount = 25.0 -}}{{- end -}}
+		{{- tablerow (printf "%.0f of ∑ %.0f Repos" $limitCount .data.search.repositoryCount | color "yellow") ("|" | color "white") ("? - Toggle Help" | color "blue+d") -}}{{- tablerender -}}
+		{{- tablerow "" -}}{{- tablerender -}}
+		{{- $headerColor := "blue+b" -}}
+			{{- tablerow ("REPO" | color $headerColor) "⭐" "🏁" ("LAST COMMIT" | color $headerColor) ("DESCRIPTION" | color $headerColor) -}}
+		{{- range .data.search.nodes -}}
+			{{- $stargazerCount := printf "%.0f" .stargazerCount -}}
+				{{- if gt .stargazerCount 1000000.0 -}}{{- $stargazerCount = ">1M" -}}
+					{{- else if gt .stargazerCount 100000.0 -}}{{- $stargazerCount = printf "%.3sk" $stargazerCount -}}
+					{{- else if gt .stargazerCount 10000.0 -}}{{- $stargazerCount = printf "%.2sk" $stargazerCount -}}
+					{{- else if gt .stargazerCount 1000.0 -}}{{- $stargazerCount = printf "%.1sk" $stargazerCount -}}
+					{{- else if eq .stargazerCount 0.0 -}}{{- $stargazerCount = "" -}}
+				{{- end -}}
+			{{- $stargazerColor := "yellow" -}}
+				{{- if .viewerHasStarred }}{{ $stargazerColor = "011+h:094" }}{{ end -}}
+			{{- $langName := "" -}}
+				{{- if .primaryLanguage }}{{ $langName = .primaryLanguage.name }}{{ end -}}
+			{{- if eq $langName "JavaScript" }}{{- $langName = "" -}}
+				{{- else if eq $langName "Python" }}{{- $langName = "" -}}
+			{{ end -}}
+			{{- tablerow (printf "%s%s%s" (.owner.login | color "cyan+h") ("/" | color "gray+h") (.name | color "cyan+hb")) ($stargazerCount | color $stargazerColor) ($langName | color "green") (timeago .pushedAt | color "gray+h") .description -}}
+		{{- end -}}\''
+	SEARCH_OUTPUT=$(FZF_DEFAULT_COMMAND="$GH_SEARCH --raw-field filter=$INITIAL_QUERY --cache $CACHE_TIME" \
+		_fzf_basic_options \
+		--disabled \
+		--prompt "Search  repos > " \
+		--header "" --header-lines 3 \
+		--preview "gh repo view {1}" --preview-window wrap:"$PREVIEW_WINDOW_VISIBILITY" \
+		--query "$INITIAL_QUERY" --exact \
+		--bind "change:first+reload:$GH_SEARCH --raw-field filter={q} --cache $CACHE_TIME || true" \
+		--bind "?:toggle-preview+change-preview:$HELP_SEARCH_SECTION" \
+		--bind 'tab:toggle-preview+change-preview(gh repo view {1})' \
+		--bind "ctrl-b:execute-silent(gh repo view {1} --web)" \
+		--bind $'ctrl-f:toggle-preview+change-preview([[ $(gh release list -R {1}) ]] && gh release view -R {1})' \
+		--bind "ctrl-r:reload:$GH_SEARCH --raw-field filter={q} || true" \
+		--bind "ctrl-t:execute-silent(gh api -X PUT /user/starred/{1})+reload:$GH_SEARCH --raw-field filter={q} --cache 0s || true" \
+		--bind "ctrl-u:execute-silent(gh api -X DELETE /user/starred/{1})+reload:$GH_SEARCH --raw-field filter={q} --cache 0s || true" \
+		--expect "btab")
+
+	OWNER_REPO_NAME=$(sed 1d <<<"${SEARCH_OUTPUT}" | awk '{print $1}')
+	case $(sed 1q <<<"${SEARCH_OUTPUT}") in
+	btab)
+		INITIAL_QUERY=""
+		_fzf_issue 0s
+		;;
+	esac
+}
+
 ###################################### STARS
 
 HELP_STAR_SECTION='cat <<<"
@@ -478,7 +560,7 @@ gh look star [-Flags] [Search term]
 Flags  │ Description
 ───────│───────────────
 <none> │ List your stars (sorted by the time the user set the star)
--c     │ Cache the response, for example "30s", "15m", "1h" (default: 5m)
+-c     │ Cache the response, for example "30s", "15m", "1h" (default: 20s)
 -U     │ List stars of another user
 -w     │ Display the preview window upon start (default: hidden)
 
@@ -499,7 +581,7 @@ ctrl+u   │ Unstar repo
 esc      │ Exit"'
 
 _fzf_star() {
-	FZF_DEFAULT_COMMAND=$'gh api graphql --paginate --raw-field query=\'query($endCursor: String, $USER_NAME:String! ) { user(login:$USER_NAME) { starredRepositories(orderBy: { field: STARRED_AT direction: DESC }, first: 100, after: $endCursor) { totalCount pageInfo { hasNextPage, endCursor } nodes { nameWithOwner primaryLanguage {name} stargazerCount viewerHasStarred pushedAt description }}}}\' --template \'
+	FZF_DEFAULT_COMMAND=$'gh api graphql --paginate --raw-field query=\'query($endCursor: String, $USER_NAME:String! ) { user(login:$USER_NAME) { starredRepositories(orderBy: { field: STARRED_AT direction: DESC }, first: 100, after: $endCursor) { totalCount pageInfo { hasNextPage, endCursor } nodes { name owner {login} primaryLanguage {name} stargazerCount viewerHasStarred pushedAt description }}}}\' --template \'
 		{{- tablerow (printf "∑ %.0f Starred Repos" .data.user.starredRepositories.totalCount | color "yellow+h") ( "|" | color "white") ("? - Toggle Help" | color "blue+d") -}}{{- tablerender -}}
 		{{- tablerow "" -}}{{- tablerender -}}
 		{{- $headerColor := "yellow+b" -}}
@@ -521,7 +603,7 @@ _fzf_star() {
 			{{ end -}}
 		{{- $time := "" -}}{{- /* NOTE: Possible a repo has no commits, have an conditional around the timeago function to be safe against nil condition. */ -}}
 			{{- if .pushedAt -}}{{- $time = (timeago .pushedAt) -}}{{- end -}}
-		{{- tablerow (.nameWithOwner | color "cyan+h") ($stargazerCount | color $stargazerColor) ($langName | color "green") ($time | color "gray+h") .description -}}
+		{{- tablerow (printf "%s%s%s" (.owner.login | color "cyan+h") ("/" | color "gray+h") (.name | color "cyan+hb")) ($stargazerCount | color $stargazerColor) ($langName | color "green") ($time | color "gray+h") .description -}}
 		{{- end -}}\''" --raw-field USER_NAME=$USER_NAME --cache $CACHE_TIME" \
 		_fzf_basic_options --nth 1,3,7.. \
 		--prompt $'\e[1;93mSearch  stars'" [$USER_NAME] > " --header "" --header-lines 3 \
@@ -554,7 +636,7 @@ PR_OUTPUT=""
 PR_COMMENT_OUTPUT=""
 BAT_OR_CAT="cat"
 # for better speed
-CACHE_TIME="5m"
+CACHE_TIME="20s"
 
 GH_ADD_REACTION=$'gh api graphql --silent --raw-field query=\'mutation($id: ID! $emoji: ReactionContent! ) { addReaction(input: {subjectId: $id content: $emoji }) { clientMutationId }}\''
 GH_REMOVE_REACTION=$'gh api graphql --silent --raw-field query=\'mutation($id: ID! $emoji: ReactionContent! ) { removeReaction(input: {subjectId: $id content: $emoji }) { clientMutationId }}\''
@@ -662,6 +744,30 @@ while [ $# -gt 0 ]; do
 
 		grep -q "issue" <<<"$COMMAND_ARG" && _fzf_issue
 		grep -q "pr" <<<"$COMMAND_ARG" && _fzf_pr
+		;;
+	search)
+		shift
+		while getopts :c:w flag; do
+			case "$flag" in
+			c)
+				if [[ "$OPTARG" =~ ^[0-9]+[smh]$ ]]; then
+					CACHE_TIME="$OPTARG"
+				else
+					gh api octocat
+					echo "Search help, invalid cache time: $OPTARG !!!"
+					exit 1
+				fi
+				;;
+			w) PREVIEW_WINDOW_VISIBILITY="nohidden" ;;
+			*)
+				bash -c "$HELP_SEARCH_SECTION"
+				exit 1
+				;;
+			esac
+		done
+		shift "$((OPTIND - 1))"
+		INITIAL_QUERY="$*"
+		_fzf_search
 		;;
 	star)
 		shift

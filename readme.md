@@ -28,23 +28,30 @@ gh look [Command] [-Flags] [Search term]
 | :------ | :------------------------ |
 | issue   | List Issues               |
 | pr      | List Pull Requests        |
+| search  | Search for GitHub repos   |
 | star    | List starred repositories |
 
 | Flags  | Description issue/ pr command                                                                                        | Example                      |
 | :----- | :------------------------------------------------------------------------------------------------------------------- | :--------------------------- |
 | <none> | List Issues/ Pull Requests                                                                                           | gh look pr                   |
-| -c     | Cache the response, for example `30s`, `15m`, `1h` (default: `5m`)                                                   | gh look issue -c 15m         |
+| -c     | Cache the response, for example `30s`, `15m`, `1h` (default: `20s`)                                                  | gh look issue -c 15m         |
 | -e     | Emoji to make a reaction (default: THUMBS_UP 👍 ) {CONFUSED,EYES,HEART,HOORAY,LAUGH,THUMBS_DOWN,THUMBS_UP,ROCKET}     | gh look pr -e CONFUSED       |
 | -o     | sorting order (default: created-desc) {author-date,committer-date,created,interactions,reactions,updated}-{desc,asc} | gh look issue -o updated-asc |
-| -R     | Specify a repository (form: OWNER/REPO)                                                                              | gh look pr -R cli/cli        |
-| -w     | Display the preview window upon start (default: hidden)                                                              | gh look issue -wR cli/cli    |
+| -r     | Specify a repository (form: OWNER/REPO)                                                                              | gh look pr -r cli/cli        |
+| -w     | Display the preview window upon start (default: hidden)                                                              | gh look issue -wr cli/cli    |
 
-| Flags  | Description star ⭐️ command                                         | Example                 |
-| :----- | :----------------------------------------------------------------- | :---------------------- |
-| <none> | List your stars (sorted by the time the user set the star)         | gh look star            |
-| -c     | Cache the response, for example `30s`, `15m`, `1h` (default: `5m`) | gh look star -c 15m    |
-| -U     | List stars of another user                                         | gh look star -U ashtom  |
-| -w     | Display the preview window upon start (default: hidden)            | gh look star -wU ashtom |
+| Flags  | Description star ⭐️ command                                          | Example                       |
+| :----- | :------------------------------------------------------------------ | :---------------------------- |
+| <term> | Search for a repository by name                                     | gh look search fzf            |
+| -c     | Cache the response, for example `30s`, `15m`, `1h` (default: `20s`) | gh look search -c 15m farside |
+| -w     | Display the preview window upon start (default: hidden)             | gh look search -w keycastr    |
+
+| Flags  | Description star ⭐️ command                                          | Example                 |
+| :----- | :------------------------------------------------------------------ | :---------------------- |
+| <none> | List your stars (sorted by the time the user set the star)          | gh look star            |
+| -c     | Cache the response, for example `30s`, `15m`, `1h` (default: `20s`) | gh look star -c 15m     |
+| -U     | List stars of another user                                          | gh look star -U ashtom  |
+| -w     | Display the preview window upon start (default: hidden)             | gh look star -wU ashtom |
 
 ### Contributing
 

@@ -3,3 +3,6 @@ cli/cli
 fzf
 gh
 OWNER/REPO
+repos
+farside
+keycastr
