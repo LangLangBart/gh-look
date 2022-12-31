@@ -74,6 +74,7 @@ ctrl+r      │ Reload
 ctrl+t      │ React with an Emoji
 ctrl+u      │ Undo the Emoji reaction
 ctrl+x      │ Write a comment
+pgup(Fn+↑)  │ Switch to Search
 shift-right │ Switch to Pull Requests
 esc         │ Exit"'
 
@@ -129,7 +130,7 @@ _fzf_issue() {
 		--bind "ctrl-r:reload:(grep -q A <$SCRATCH_FILE && $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME \"{q} || $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME state:open \"{q}) || true" \
 		--bind "ctrl-t:execute-silent($GH_ADD_REACTION --raw-field id={1} --raw-field emoji=$REACTION_EMOJI)+reload:(grep -q A <$SCRATCH_FILE && $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME \"{q} || $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME state:open \"{q}) || true" \
 		--bind "ctrl-u:execute-silent($GH_REMOVE_REACTION --raw-field id={1} --raw-field emoji=$REACTION_EMOJI)+reload:(grep -q A <$SCRATCH_FILE && $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME \"{q} || $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME state:open \"{q}) || true" \
-		--expect "ctrl-e,ctrl-g,ctrl-n,ctrl-x,enter,shift-right")
+		--expect "ctrl-e,ctrl-g,ctrl-n,ctrl-x,enter,pgup,shift-right")
 
 	ISSUE_NUMBER=$(sed 1d <<<"${ISSUE_OUTPUT}" | awk '{print $2}' | tr -d "#")
 	case $(sed 1q <<<"${ISSUE_OUTPUT}") in
@@ -166,6 +167,10 @@ _fzf_issue() {
 		gh issue create --repo "$OWNER_REPO_NAME"
 		_load_indicator "Restarting ..." 0.25
 		_fzf_issue 0s
+		;;
+	pgup)
+		INITIAL_QUERY="fzf"
+		_fzf_search
 		;;
 	ctrl-x)
 		gh issue comment "$ISSUE_NUMBER" --repo "$OWNER_REPO_NAME"
@@ -487,18 +492,18 @@ Head │ Description
 ⭐   │ Number of stargazers
 🏁   │ Primary language
 
-HotKeys   │ Description
-──────────│───────────────
-?         │ Toggle help
-tab       │ Preview README
-shift+tab │ Switch to Issues
-ctrl+b    │ Browser
-ctrl+f    │ Preview release infos
-ctrl+r    │ Reload
-ctrl+t    │ Star repo
-ctrl+u    │ Unstar repo
-ctrl+x    │ Clone repo
-esc       │ Exit"'
+HotKeys    │ Description
+───────────│───────────────
+?          │ Toggle help
+tab        │ Preview README
+ctrl+b     │ Browser
+ctrl+f     │ Preview release infos
+ctrl+r     │ Reload
+ctrl+t     │ Star repo
+ctrl+u     │ Unstar repo
+pgup(Fn+↑) │ Switch to your starred repos
+pgdn(Fn+↓) │ Switch to Issues
+esc        │ Exit"'
 
 _fzf_search() {
 
@@ -541,12 +546,17 @@ _fzf_search() {
 		--bind "ctrl-r:reload:$GH_SEARCH --raw-field filter={q} || true" \
 		--bind "ctrl-t:execute-silent(gh api -X PUT /user/starred/{1})+reload:$GH_SEARCH --raw-field filter={q} --cache 0s || true" \
 		--bind "ctrl-u:execute-silent(gh api -X DELETE /user/starred/{1})+reload:$GH_SEARCH --raw-field filter={q} --cache 0s || true" \
-		--expect "btab")
+		--expect "pgup,pgdn")
 
-	OWNER_REPO_NAME=$(sed 1d <<<"${SEARCH_OUTPUT}" | awk '{print $1}')
 	case $(sed 1q <<<"${SEARCH_OUTPUT}") in
-	btab)
+	pgup)
 		INITIAL_QUERY=""
+		USER_NAME="$(gh api graphql --cache 1h --raw-field query='{viewer{login}}' --jq '.data.viewer.login')"
+		_fzf_star
+		;;
+	pgdn)
+		INITIAL_QUERY=""
+		OWNER_REPO_NAME=$(sed 1d <<<"${SEARCH_OUTPUT}" | awk '{print $1}')
 		_fzf_issue 0s
 		;;
 	esac
@@ -569,19 +579,20 @@ Head │ Description
 ⭐   │ Number of stargazers
 🏁   │ Primary language
 
-HotKeys  │ Description
-─────────│───────────────
-?        │ Toggle help
-tab      │ Preview README
-ctrl+b   │ Browser
-ctrl+r   │ Reload
-ctrl+f   │ Preview release infos
-ctrl+t   │ Star repo (useful for stars of another user)
-ctrl+u   │ Unstar repo
-esc      │ Exit"'
+HotKeys    │ Description
+───────────│───────────────
+?          │ Toggle help
+tab        │ Preview README
+ctrl+b     │ Browser
+ctrl+r     │ Reload
+ctrl+f     │ Preview release infos
+ctrl+t     │ Star repo (useful for stars of another user)
+ctrl+u     │ Unstar repo
+pgdn(Fn+↓) │ Switch to Search
+esc        │ Exit"'
 
 _fzf_star() {
-	FZF_DEFAULT_COMMAND=$'gh api graphql --paginate --raw-field query=\'query($endCursor: String, $USER_NAME:String! ) { user(login:$USER_NAME) { starredRepositories(orderBy: { field: STARRED_AT direction: DESC }, first: 100, after: $endCursor) { totalCount pageInfo { hasNextPage, endCursor } nodes { name owner {login} primaryLanguage {name} stargazerCount viewerHasStarred pushedAt description }}}}\' --template \'
+	GH_STAR=$'gh api graphql --paginate --raw-field query=\'query($endCursor: String, $USER_NAME:String! ) { user(login:$USER_NAME) { starredRepositories(orderBy: { field: STARRED_AT direction: DESC }, first: 100, after: $endCursor) { totalCount pageInfo { hasNextPage, endCursor } nodes { name owner {login} primaryLanguage {name} stargazerCount viewerHasStarred pushedAt description }}}}\' --template \'
 		{{- tablerow (printf "∑ %.0f Starred Repos" .data.user.starredRepositories.totalCount | color "yellow+h") ( "|" | color "white") ("? - Toggle Help" | color "blue+d") -}}{{- tablerender -}}
 		{{- tablerow "" -}}{{- tablerender -}}
 		{{- $headerColor := "yellow+b" -}}
@@ -604,7 +615,9 @@ _fzf_star() {
 		{{- $time := "" -}}{{- /* NOTE: Possible a repo has no commits, have an conditional around the timeago function to be safe against nil condition. */ -}}
 			{{- if .pushedAt -}}{{- $time = (timeago .pushedAt) -}}{{- end -}}
 		{{- tablerow (printf "%s%s%s" (.owner.login | color "cyan+h") ("/" | color "gray+h") (.name | color "cyan+hb")) ($stargazerCount | color $stargazerColor) ($langName | color "green") ($time | color "gray+h") .description -}}
-		{{- end -}}\''" --raw-field USER_NAME=$USER_NAME --cache $CACHE_TIME" \
+		{{- end -}}\''
+
+	STAR_OUTPUT=$(FZF_DEFAULT_COMMAND="$GH_STAR --raw-field USER_NAME=$USER_NAME --cache $CACHE_TIME" \
 		_fzf_basic_options --nth 1,3,7.. \
 		--prompt $'\e[1;93mSearch  stars'" [$USER_NAME] > " --header "" --header-lines 3 \
 		--preview "gh repo view {1}" --preview-window wrap:"$PREVIEW_WINDOW_VISIBILITY" \
@@ -613,9 +626,17 @@ _fzf_star() {
 		--bind 'tab:toggle-preview+change-preview(gh repo view {1})' \
 		--bind "ctrl-b:execute-silent(gh repo view {1} --web)" \
 		--bind $'ctrl-f:toggle-preview+change-preview([[ $(gh release list -R {1}) ]] && gh release view -R {1})' \
-		--bind $'ctrl-r:reload(eval "$FZF_DEFAULT_COMMAND" --cache 0s)' \
-		--bind $'ctrl-t:execute-silent(gh api --method PUT user/starred/{1})+reload(eval "$FZF_DEFAULT_COMMAND" --cache 0s)' \
-		--bind $'ctrl-u:execute-silent(gh api --method DELETE user/starred/{1})+reload(eval "$FZF_DEFAULT_COMMAND" --cache 0s)'
+		--bind "ctrl-r:reload:$GH_STAR --raw-field USER_NAME=$USER_NAME --cache 0s" \
+		--bind "ctrl-t:execute-silent(gh api --method PUT user/starred/{1})+reload:$GH_STAR --raw-field USER_NAME=$USER_NAME --cache 0s" \
+		--bind "ctrl-u:execute-silent(gh api --method DELETE user/starred/{1})+reload:$GH_STAR --raw-field USER_NAME=$USER_NAME --cache 0s" \
+		--expect "pgdn")
+
+	case $(sed 1q <<<"${STAR_OUTPUT}") in
+	pgdn)
+		INITIAL_QUERY="fzf"
+		_fzf_search
+		;;
+	esac
 }
 
 # TODO the statement [[...]] && ... || ... is a typical bash pitfall case, if the command after && fails the command after || gets executed as well (it should not); use a simple if ... else ... statement
@@ -678,7 +699,7 @@ while [ $# -gt 0 ]; do
 	case "$COMMAND_ARG" in
 	issue | pr)
 		shift
-		while getopts :c:e:o:R:w flag; do
+		while getopts :c:e:o:r:w flag; do
 			case "$flag" in
 			c)
 				if [[ "$OPTARG" =~ ^[0-9]+[smh]$ ]]; then
@@ -707,7 +728,7 @@ while [ $# -gt 0 ]; do
 					exit 1
 				fi
 				;;
-			R)
+			r)
 				# local syntax test first to fail fast, and then gh api test
 				# curl is faster, but unauthenticated API requests to GitHub are capped at 60 per hour. Authenticated API requests 5000 per hour.
 				if [[ "$OPTARG" =~ ^[^:/]+/[^:/]+$ ]]; then
