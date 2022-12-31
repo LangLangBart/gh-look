@@ -40,7 +40,7 @@ gh look [Command] [-Flags] [Search term]
 | -r     | Specify a repository (form: OWNER/REPO)                                                                              | gh look pr -r cli/cli        |
 | -w     | Display the preview window upon start (default: hidden)                                                              | gh look issue -wr cli/cli    |
 
-| Flags  | Description star ⭐️ command                                          | Example                       |
+| Flags  | Description search 🔎 command                                          | Example                       |
 | :----- | :------------------------------------------------------------------ | :---------------------------- |
 | <term> | Search for a repository by name                                     | gh look search fzf            |
 | -c     | Cache the response, for example `30s`, `15m`, `1h` (default: `20s`) | gh look search -c 15m farside |
