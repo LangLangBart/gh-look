@@ -1,7 +1,8 @@
 # gh look
 Drop an emoji, write comments, star repositories, read the preview or browse the issue tracker. All interactively by combining `gh` with `fzf`.
 
-![](https://raw.githubusercontent.com/LangLangBart/ImagePool/eff1b17b31ce05c60023bcbb59b61d1727eee7b8/storage/18_Sep_22_at_07_06_03_emoji.gif)
+![](https://raw.githubusercontent.com/LangLangbart/ImagePool/4189a2c8d850aa031c3f5878c0e12f4d4d198a06/storage/2023-01-01_09-54-04_mode_switch.gif)
+
 
 ## 💻 Requirements
 Install [Fuzzy Finder (fzf)](https://github.com/junegunn/fzf#installation)  and the [GitHub command line tool (gh)](https://github.com/cli/cli#installation), for example through Homebrew.
@@ -34,27 +35,31 @@ gh look [Command] [-Flags] [Search term]
 | search  | Search for GitHub repos   |
 | star    | List starred repositories |
 
-| Flags  | Description issue/ pr command                                                                                        | Example                      |
-| :----- | :------------------------------------------------------------------------------------------------------------------- | :--------------------------- |
-| <none> | List Issues/ Pull Requests                                                                                           | gh look pr                   |
-| -c     | Cache the response, for example `30s`, `15m`, `1h` (default: `20s`)                                                  | gh look issue -c 15m         |
-| -e     | Emoji to make a reaction (default: THUMBS_UP 👍 ) {CONFUSED,EYES,HEART,HOORAY,LAUGH,THUMBS_DOWN,THUMBS_UP,ROCKET}     | gh look pr -e CONFUSED       |
-| -o     | sorting order (default: created-desc) {author-date,committer-date,created,interactions,reactions,updated}-{desc,asc} | gh look issue -o updated-asc |
-| -r     | Specify a repository (form: OWNER/REPO)                                                                              | gh look pr -r cli/cli        |
-| -w     | Display the preview window upon start (default: hidden)                                                              | gh look issue -wr cli/cli    |
 
-| Flags  | Description search 🔎 command                                        | Example                        |
-| :----- | :------------------------------------------------------------------ | :----------------------------- |
-| <term> | Search for a repository by name                                     | gh look search keycastr        |
-| -c     | Cache the response, for example `30s`, `15m`, `1h` (default: `20s`) | gh look search -c 15m keycastr |
-| -w     | Display the preview window upon start (default: hidden)             | gh look search -w keycastr     |
+| Flags  | Applies to all commands                                             | Example                   |
+| :----- | :------------------------------------------------------------------ | :------------------------ |
+| -c     | Cache the response, for example `30s`, `15m`, `1h` (default: `20s`) | gh look star -c 15m       |
+| -w     | Display the preview window upon start (default: hidden)             | gh look issue -wr cli/cli |
 
-| Flags  | Description star ⭐️ command                                          | Example                 |
-| :----- | :------------------------------------------------------------------ | :---------------------- |
-| <none> | List your stars (sorted by the time the user set the star)          | gh look star            |
-| -c     | Cache the response, for example `30s`, `15m`, `1h` (default: `20s`) | gh look star -c 15m     |
-| -u     | List stars of another user                                          | gh look star -u ashtom  |
-| -w     | Display the preview window upon start (default: hidden)             | gh look star -wu ashtom |
+| Flags  | Description issue/ pr command                        | Example                      |
+| :----- | :--------------------------------------------------- | :--------------------------- |
+| <none> | List Issues/ Pull Requests                           | gh look pr                   |
+| -e     | Emoji to make a reaction[^1] (default: THUMBS_UP 👍 ) | gh look pr -e CONFUSED       |
+| -o     | sorting order[^2] (default: created-desc)            | gh look issue -o updated-asc |
+| -r     | Specify a repository (form: OWNER/REPO)              | gh look pr -r cli/cli        |
+
+[^1]: Valid emojis {THUMBS_UP 👍, THUMBS_DOWN 👎, LAUGH 😄, HOORAY 🎉, CONFUSED 😕, HEART ❤️, ROCKET 🚀, EYES 👀}
+[^2]: Valid Ordering options {author-date,committer-date,created,interactions,reactions,updated}-{desc,asc}
+  [GitHub Docs - Searching on GitHub](https://docs.github.com/en/search-github/searching-on-github)
+
+| Flags  | Description search 🔎 command    | Example                 |
+| :----- | :------------------------------ | :---------------------- |
+| <term> | Search for a repository by name | gh look search keycastr |
+
+| Flags  | Description star ⭐️ command                                 | Example                |
+| :----- | :--------------------------------------------------------- | :--------------------- |
+| <none> | List your stars (sorted by the time the user set the star) | gh look star           |
+| -u     | List stars of another user                                 | gh look star -u ashtom |
 
 
 ### HotKeys
@@ -84,8 +89,6 @@ style Issue_and_PR fill:transparent,stroke-width:1px,stroke:#1234
 style Comment fill:transparent,stroke-width:0px
 ```
 
-![](https://raw.githubusercontent.com/LangLangbart/ImagePool/4189a2c8d850aa031c3f5878c0e12f4d4d198a06/storage/2023-01-01_09-54-04_mode_switch.gif)
-
 ---
 
 ## 💪 Contributing
@@ -113,4 +116,5 @@ vale --minAlertLevel=suggestion .
 
 ## 💁 FAQ
 
-1. Icons: [NERD FONT](https://www.nerdfonts.com/cheat-sheet) icons are being used. If you see some "strange" icons, follow the steps in the link to install a better font: [powerlevel10k#fonts](https://github.com/romkatv/powerlevel10k#fonts)
+### Strange icons
+- [NERD FONT](https://www.nerdfonts.com/cheat-sheet) icons are being used. If you see some `strange` icons, follow the steps in the link to install a better font: [powerlevel10k#fonts](https://github.com/romkatv/powerlevel10k#fonts)
