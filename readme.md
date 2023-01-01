@@ -1,8 +1,7 @@
 # gh look
 Drop an emoji, write comments, star repositories, read the preview or browse the issue tracker. All interactively by combining `gh` with `fzf`.
 
-![](https://raw.githubusercontent.com/LangLangbart/ImagePool/4189a2c8d850aa031c3f5878c0e12f4d4d198a06/storage/2023-01-01_09-54-04_mode_switch.gif)
-
+![switch_demo](https://user-images.githubusercontent.com/92653266/210178720-24bc78ef-5ae6-414c-8007-862a2a8f087e.gif)
 
 ## 💻 Requirements
 Install [Fuzzy Finder (fzf)](https://github.com/junegunn/fzf#installation)  and the [GitHub command line tool (gh)](https://github.com/cli/cli#installation), for example through Homebrew.
