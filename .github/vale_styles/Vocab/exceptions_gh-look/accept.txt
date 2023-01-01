@@ -4,5 +4,4 @@ fzf
 gh
 OWNER/REPO
 repos
-farside
 keycastr
