@@ -1,8 +1,7 @@
 # gh look
 Drop an emoji, write comments, star repositories, read the preview or browse the issue tracker. All interactively by combining `gh` with `fzf`.
 
-
-<img src="https://raw.githubusercontent.com/LangLangBart/ImagePool/eff1b17b31ce05c60023bcbb59b61d1727eee7b8/storage/18_Sep_22_at_07_06_03_emoji.gif" width="600">
+![](https://raw.githubusercontent.com/LangLangBart/ImagePool/eff1b17b31ce05c60023bcbb59b61d1727eee7b8/storage/18_Sep_22_at_07_06_03_emoji.gif)
 
 ## 💻 Requirements
 Install [Fuzzy Finder (fzf)](https://github.com/junegunn/fzf#installation)  and the [GitHub command line tool (gh)](https://github.com/cli/cli#installation), for example through Homebrew.
@@ -58,21 +57,34 @@ gh look [Command] [-Flags] [Search term]
 | -w     | Display the preview window upon start (default: hidden)             | gh look star -wu ashtom |
 
 
-### Switch between modes interactively
-Use <kbd>pgup</kbd>/<kbd>pgdn</kbd> to switch between modes (macOS <kbd>pgup</kbd>/<kbd>pgdn</kbd> are <kbd>fn+↑</kbd>/<kbd>fn+↓</kbd>).
+### HotKeys
+- <kbd>?</kbd> shows a list of specific hotkeys defined for each command.
+- <kbd>pgup</kbd>/<kbd>pgdn</kbd> switches between commands (macOS <kbd>fn+↑</kbd>/<kbd>fn+↓</kbd>), comments can be reached with <kbd>enter</kbd>/<kbd>esc</kbd>.
 
 ```mermaid
-graph TD
-    A(Stars) -->|pgdn| B(Search)
-    B -->|pgup| A
-    B -->|pgdn| C[Issues]
-    C -->|pgup| B
-    C -->|pgdn| D[PullRequests]
-    D -->|pgup| C
+%% GitHub seems to not display fontawesome icons
+%% https://mermaid.js.org/syntax/flowchart.html#basic-support-for-fontawesome
+flowchart BT
+    Stars([fa:fa-user Stars])-->|pgdn| Search([fa:fa-magnifying-glass Search])
+    Search -->|pgup| Stars
+    Search -->|pgdn| Issues
+    Issues -->|pgup| Search
+    subgraph Issue_and_PR[fa:fa-nonsenseValue]
+        direction BT
+        Issues([fa:fa-circle-dot Issues]) --> |pgdn|PullRequests([fa:fa-code-pull-request PullRequests])
+        PullRequests --> |pgup| Issues
+    end
+    subgraph Comment[fa:fa-nonsenseValue]
+        Comments([fa:fa-comments Comments])
+    end
+    Issue_and_PR -->|enter| Comments
+    Comments -->|esc| Issue_and_PR
+
+style Issue_and_PR fill:transparent,stroke-width:1px,stroke:#1234
+style Comment fill:transparent,stroke-width:0px
 ```
 
-<img src="https://raw.githubusercontent.com/LangLangbart/ImagePool/4189a2c8d850aa031c3f5878c0e12f4d4d198a06/storage/2023-01-01_09-54-04_mode_switch.gif" width="600">
-
+![](https://raw.githubusercontent.com/LangLangbart/ImagePool/4189a2c8d850aa031c3f5878c0e12f4d4d198a06/storage/2023-01-01_09-54-04_mode_switch.gif)
 
 ---
 
