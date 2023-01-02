@@ -1,12 +1,19 @@
+<div align="center">
+
 # gh look
+
 Drop an emoji, write comments, star repositories, read the preview or browse the issue tracker. All interactively by combining `gh` with `fzf`.
 
-![switch_demo](https://user-images.githubusercontent.com/92653266/210178720-24bc78ef-5ae6-414c-8007-862a2a8f087e.gif)
+![](https://user-images.githubusercontent.com/92653266/210178720-24bc78ef-5ae6-414c-8007-862a2a8f087e.gif)
+
+</div>
+
+---
 
 ## 💻 Requirements
 Install [Fuzzy Finder (fzf)](https://github.com/junegunn/fzf#installation)  and the [GitHub command line tool (gh)](https://github.com/cli/cli#installation), for example through Homebrew.
 
-Optionally, you can also install [bat](https://github.com/sharkdp/bat#installation) to make the preview more beautiful.
+Optionally, also install [bat](https://github.com/sharkdp/bat#installation) to beautify the preview.
 
 ```zsh
 brew install fzf gh bat
@@ -27,41 +34,35 @@ gh ext remove LangLangBart/gh-look
 gh look [Command] [-Flags] [Search term]
 ```
 
-| Command | Description               |
-| :------ | :------------------------ |
-| issue   | List Issues               |
-| pr      | List Pull Requests        |
-| search  | Search for GitHub repos   |
-| star    | List starred repositories |
+| Command | Description                                                     | Example                               |
+| :------ | :-------------------------------------------------------------- | :------------------------------------ |
+| issue   | List Issues                                                     | gh look issue -r cli/cli involves:@me |
+| pr      | List Pull Requests                                              | gh look pr                            |
+| search  | Search 🔎 for GitHub repos                                       | gh look search keycastr               |
+| star    | List starred ⭐️ repos (sorted by the time the user set the star) | gh look star                          |
 
+| Flags | All commands                                                        | Example                     |
+| :---- | :------------------------------------------------------------------ | :-------------------------- |
+| -c    | Cache the response, for example `30s`, `15m`, `1h` (default: `20s`) | gh look star -c 15m         |
+| -w    | Display the preview window upon start (default: hidden)             | gh look issue -w -r cli/cli |
 
-| Flags  | Applies to all commands                                             | Example                   |
-| :----- | :------------------------------------------------------------------ | :------------------------ |
-| -c     | Cache the response, for example `30s`, `15m`, `1h` (default: `20s`) | gh look star -c 15m       |
-| -w     | Display the preview window upon start (default: hidden)             | gh look issue -wr cli/cli |
+| Flags | Issue/ pr command                                    | Example                      |
+| :---- | :--------------------------------------------------- | :--------------------------- |
+| -e    | Emoji to make a reaction[^1] (default: THUMBS_UP 👍 ) | gh look pr -e CONFUSED       |
+| -o    | sorting order[^2] (default: created-desc)            | gh look issue -o updated-asc |
+| -r    | Specify a repository (form: OWNER/REPO)              | gh look pr -r cli/cli        |
 
-| Flags  | Description issue/ pr command                        | Example                      |
-| :----- | :--------------------------------------------------- | :--------------------------- |
-| <none> | List Issues/ Pull Requests                           | gh look pr                   |
-| -e     | Emoji to make a reaction[^1] (default: THUMBS_UP 👍 ) | gh look pr -e CONFUSED       |
-| -o     | sorting order[^2] (default: created-desc)            | gh look issue -o updated-asc |
-| -r     | Specify a repository (form: OWNER/REPO)              | gh look pr -r cli/cli        |
+| Flags | Star ⭐️ command             | Example                |
+| :---- | :------------------------- | :--------------------- |
+| -u    | List stars of another user | gh look star -u ashtom |
+
 
 [^1]: Valid emojis {THUMBS_UP 👍, THUMBS_DOWN 👎, LAUGH 😄, HOORAY 🎉, CONFUSED 😕, HEART ❤️, ROCKET 🚀, EYES 👀}
 [^2]: Valid Ordering options {author-date,committer-date,created,interactions,reactions,updated}-{desc,asc}
   [GitHub Docs - Searching on GitHub](https://docs.github.com/en/search-github/searching-on-github)
 
-| Flags  | Description search 🔎 command    | Example                 |
-| :----- | :------------------------------ | :---------------------- |
-| <term> | Search for a repository by name | gh look search keycastr |
 
-| Flags  | Description star ⭐️ command                                 | Example                |
-| :----- | :--------------------------------------------------------- | :--------------------- |
-| <none> | List your stars (sorted by the time the user set the star) | gh look star           |
-| -u     | List stars of another user                                 | gh look star -u ashtom |
-
-
-### HotKeys
+### Hotkeys
 - <kbd>?</kbd> shows a list of specific hotkeys defined for each command.
 - <kbd>pgup</kbd>/<kbd>pgdn</kbd> switches between commands (macOS <kbd>fn+↑</kbd>/<kbd>fn+↓</kbd>), comments can be reached with <kbd>enter</kbd>/<kbd>esc</kbd>.
 
@@ -75,7 +76,7 @@ flowchart BT
     Issues -->|pgup| Search
     subgraph Issue_and_PR[fa:fa-nonsenseValue]
         direction BT
-        Issues([fa:fa-circle-dot Issues]) --> |pgdn|PullRequests([fa:fa-code-pull-request PullRequests])
+        Issues([fa:fa-circle-dot Issues]) --> |pgdn|PullRequests([fa:fa-code-pull-request Pull Requests])
         PullRequests --> |pgup| Issues
     end
     subgraph Comment[fa:fa-nonsenseValue]
