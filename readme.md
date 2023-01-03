@@ -74,6 +74,7 @@ flowchart BT
     Search -->|pgup| Stars
     Search -->|pgdn| Issues
     Issues -->|pgup| Search
+
     subgraph Issue_and_PR[fa:fa-nonsenseValue]
         direction BT
         Issues([fa:fa-circle-dot Issues]) --> |pgdn|PullRequests([fa:fa-code-pull-request Pull Requests])
@@ -85,8 +86,9 @@ flowchart BT
     Issue_and_PR -->|enter| Comments
     Comments -->|esc| Issue_and_PR
 
-style Issue_and_PR fill:transparent,stroke-width:1px,stroke:#1234
+style Issue_and_PR fill:transparent,stroke-width:0.8px,stroke:#5b387c90
 style Comment fill:transparent,stroke-width:0px
+linkStyle default stroke-width:1.5px
 ```
 
 ---
