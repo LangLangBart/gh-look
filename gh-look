@@ -25,7 +25,10 @@ _fzf_basic_options() {
 	GH_FORCE_TTY=10000 fzf -- \
 		--ansi --layout reverse --info inline --no-multi --height 100% \
 		--header '' --ellipsis '' --border horizontal \
-		--preview-window "$PREVIEW_WINDOW_VISIBILITY:wrap:right:50%:border-left" "$@"
+		--no-separator \
+		--preview-window "$PREVIEW_WINDOW_VISIBILITY:wrap:right:50%:border-left" \
+		--bind 'btab:change-preview-window(75%:nohidden|75%:down:nohidden:border-top|nohidden)' \
+		"$@"
 }
 
 die_with_octocat() {
@@ -70,7 +73,8 @@ HotKeys     │ Description
             │  (Example: sort:reactions is:closed involves:@me Autobahn)
 ?           │ Toggle help
 enter       │ See comments
-tab         │ Toggle Issue preview
+tab         │ Toggle preview
+shift+tab   │ Change preview window size
 ctrl+a      │ ALL Issues
 ctrl+b      │ Browser
 ctrl+e      │ Edit an Issue
@@ -205,17 +209,18 @@ Head │ Description
 ─────│───────────────
 📣   │ Total number of emojis (green reactable; yellow reacted; red locked)
 
-HotKeys  │ Description
-─────────│───────────────
-?        │ Toggle help
-tab      │ Toggle comment preview
-ctrl+b   │ Browser
-ctrl+n   │ New Issue
-ctrl+t   │ React with an Emoji
-ctrl+u   │ Undo the Emoji reaction
-ctrl+x   │ Write a comment
-ctrl+z   │ Delete the comment after confirmation
-esc      │ Return to Issue list"'
+HotKeys   │ Description
+──────────│───────────────
+?         │ Toggle help
+tab       │ Toggle preview
+shift+tab │ Change preview window size
+ctrl+b    │ Browser
+ctrl+n    │ New Issue
+ctrl+t    │ React with an Emoji
+ctrl+u    │ Undo the Emoji reaction
+ctrl+x    │ Write a comment
+ctrl+z    │ Delete the comment after confirmation
+esc       │ Return to Issue list"'
 
 	GH_ISSUE_COMMENTS_COMMAND=$'gh api graphql --paginate --raw-field query=\'query ($owner: String!, $name: String!, $number: Int!, $endCursor: String) { repository(owner: $owner, name: $name) { issue(number: $number) { author { login } createdAt labels(first:10) { nodes { name } } number state title comments(first: 100, after: $endCursor) { totalCount nodes { author { login } body createdAt databaseId id reactions { totalCount viewerHasReacted } viewerCanReact viewerDidAuthor } pageInfo { endCursor hasNextPage }}}}}\' --template \'
 		{{- $prefix := .data.repository.issue -}}
@@ -316,7 +321,8 @@ HotKeys    │ Description
            │  (Example: sort:reactions is:closed involves:@me Autobahn)
 ?          │ Toggle help
 enter      │ See comments
-tab        │ Toggle Pull Request preview
+type       │ Toggle preview
+shift+tab  │ Change preview window size
 ctrl+a     │ ALL Pull Requests
 ctrl+b     │ Browser
 ctrl+d     │ Toggle diff
@@ -329,7 +335,7 @@ ctrl+t     │ React with an Emoji
 ctrl+u     │ Undo the Emoji reaction
 ctrl+x     │ Write a comment
 ctrl+y     │ Checkout
-shift-left │ Switch to Issues
+pgup(Fn+↑) │ Switch to Issues
 esc        │ Exit"'
 
 _fzf_pr() {
@@ -422,16 +428,17 @@ Head │ Description
 ─────│───────────────
 📣   │ Total number of emojis (green reactable; yellow reacted; red locked)
 
-HotKeys  │ Description
-─────────│───────────────
-?        │ Toggle help
-tab      │ Toggle comment preview
-ctrl+b   │ Browser
-ctrl+d   │ Toggle diff
-ctrl+t   │ React with an Emoji
-ctrl+u   │ Undo the Emoji reaction
-ctrl+x   │ Write a comment
-esc      │ Return to Pull Request list"'
+HotKeys   │ Description
+──────────│───────────────
+?         │ Toggle help
+tab       │ Toggle preview
+shift+tab │ Change preview window size
+ctrl+b    │ Browser
+ctrl+d    │ Toggle diff
+ctrl+t    │ React with an Emoji
+ctrl+u    │ Undo the Emoji reaction
+ctrl+x    │ Write a comment
+esc       │ Return to Pull Request list"'
 
 	GH_PR_COMMENTS_COMMAND=$'gh api graphql --paginate --raw-field query=\'query ($owner: String!, $name: String!, $number: Int!, $endCursor: String) { repository(owner: $owner, name: $name) { pullRequest(number: $number) { author { login } createdAt labels(first:10) { nodes { name } } number state title comments(first: 100, after: $endCursor) { totalCount nodes { author { login } body createdAt databaseId id reactions { totalCount viewerHasReacted } viewerCanReact viewerDidAuthor } pageInfo { endCursor hasNextPage }}}}}\' --template \'
 		{{- $prefix := .data.repository.pullRequest -}}
@@ -504,6 +511,7 @@ HotKeys    │ Description
 ───────────│───────────────
 ?          │ Toggle help
 tab        │ Preview README
+shift+tab  │ Change preview window size
 ctrl+b     │ Browser
 ctrl+f     │ Preview release infos
 ctrl+r     │ Reload
@@ -594,6 +602,7 @@ HotKeys    │ Description
 ───────────│───────────────
 ?          │ Toggle help
 tab        │ Preview README
+shift+tab  │ Change preview window size
 ctrl+b     │ Browser
 ctrl+r     │ Reload
 ctrl+f     │ Preview release infos
