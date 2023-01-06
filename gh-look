@@ -26,8 +26,8 @@ _fzf_basic_options() {
 		--ansi --layout reverse --info inline --no-multi --height 100% \
 		--header '' --ellipsis '' --border horizontal \
 		--no-separator \
-		--preview-window "$PREVIEW_WINDOW_VISIBILITY:wrap:right:50%:border-left" \
-		--bind 'btab:change-preview-window(75%:nohidden|75%:down:nohidden:border-top|nohidden)' \
+		--preview-window "$PREVIEW_WINDOW_VISIBILITY:wrap:right:65%:border-left" \
+		--bind 'btab:change-preview-window(50%:nohidden|65%:down:nohidden:border-top|nohidden)' \
 		"$@"
 }
 
@@ -54,11 +54,9 @@ gh look issue [-Flags] [Search term]
 Flags  │ Description
 ───────│───────────────
 <none> │ List Issues from current directory
--c     │ Cache the response, for example "30s", "15m", "1h" (default: 5m)
+-c     │ Cache the response, for example "30s", "15m", "1h" (default: 20s)
 -e     │ Emoji to make a reaction (default: THUMBS_UP 👍 )
-       │  {CONFUSED,EYES,HEART,HOORAY,LAUGH,THUMBS_DOWN,THUMBS_UP,ROCKET}
 -o     │ sorting order of Issues (default: created-desc)
-       │  {author-date,committer-date,created,interactions,reactions,updated}-{desc,asc}
 -r     │ Specify a repository (form: OWNER/REPO)
 -w     │ Display the preview window upon start (default: hidden)
 
@@ -69,8 +67,6 @@ Head  │ Description
 
 HotKeys     │ Description
 ────────────│───────────────
-<search>    │ https://docs.github.com/en/search-github/searching-on-github
-            │  (Example: sort:reactions is:closed involves:@me Autobahn)
 ?           │ Toggle help
 enter       │ See comments
 tab         │ Toggle preview
@@ -300,11 +296,9 @@ gh look pr [-Flags] [Search term]
 Flags  │ Description
 ───────│───────────────
 <none> │ List Pull Requests from current directory
--c     │ Cache the response, for example "30s", "15m", "1h" (default: 5m)
+-c     │ Cache the response, for example "30s", "15m", "1h" (default: 20s)
 -e     │ Emoji to make a reaction (default: THUMBS_UP 👍 )
-       │  {CONFUSED,EYES,HEART,HOORAY,LAUGH,THUMBS_DOWN,THUMBS_UP,ROCKET}
 -o     │ sorting order of Pull Requests (default: created-desc)
-       │  {author-date,committer-date,created,interactions,reactions,updated}-{desc,asc}
 -r     │ Specify a repo (form: OWNER/REPO)
 -w     │ Display the preview window upon start (default: hidden)
 
@@ -317,8 +311,6 @@ Head  │ Description
 
 HotKeys    │ Description
 ───────────│───────────────
-<search>   │ https://docs.github.com/en/search-github/searching-on-github
-           │  (Example: sort:reactions is:closed involves:@me Autobahn)
 ?          │ Toggle help
 enter      │ See comments
 type       │ Toggle preview
@@ -499,7 +491,7 @@ gh look search [-Flags] [Search term]
 Flags  │ Description
 ───────│───────────────
 <term> │ Search for GitHub repos
--c     │ Cache the response, for example "30s", "15m", "1h" (default: 5m)
+-c     │ Cache the response, for example "30s", "15m", "1h" (default: 20s)
 -w     │ Display the preview window upon start (default: hidden)
 
 Head │ Description
@@ -665,6 +657,8 @@ _fzf_star() {
 # TODO it would be useful to store an emoji in the scratch file, but it must be visually clear which emoji is actively set when generating a reaction
 # TODO on return from the comment section it falls back to the original, rather than the last
 # TODO the I only want the merge event and hide the close event on PR's https://pkg.go.dev/text/template
+# TODO I would like to have a larger help page, but only for the help page, for example 99%
+
 
 REACTION_EMOJI="THUMBS_UP"
 SORTING_ORDER=""
