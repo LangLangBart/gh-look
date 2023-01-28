@@ -31,6 +31,11 @@ _fzf_basic_options() {
 		"$@"
 }
 
+# for comparing multi-digit version numbers https://apple.stackexchange.com/a/123408/11374
+_version_number() {
+	echo "$@" | awk -F. '{ printf("%d%03d%03d%03d\n", $1,$2,$3,$4); }'
+}
+
 die_with_octocat() {
 	GH_PAGER="cat" gh api octocat
 	printf "\e[1;91m[%s] < ERROR > %s\e[0m\n" "$(date +"%H:%M:%S")" "$@"
@@ -659,7 +664,6 @@ _fzf_star() {
 # TODO the I only want the merge event and hide the close event on PR's https://pkg.go.dev/text/template
 # TODO I would like to have a larger help page, but only for the help page, for example 99%
 
-
 REACTION_EMOJI="THUMBS_UP"
 SORTING_ORDER=""
 OWNER_REPO_NAME=""
@@ -672,6 +676,7 @@ PR_COMMENT_OUTPUT=""
 BAT_OR_CAT="cat"
 # for better speed
 CACHE_TIME="20s"
+MIN_FZF_VERSION="0.36.0"
 
 GH_ADD_REACTION=$'gh api graphql --silent --raw-field query=\'mutation($id: ID! $emoji: ReactionContent! ) { addReaction(input: {subjectId: $id content: $emoji }) { clientMutationId }}\''
 GH_REMOVE_REACTION=$'gh api graphql --silent --raw-field query=\'mutation($id: ID! $emoji: ReactionContent! ) { removeReaction(input: {subjectId: $id content: $emoji }) { clientMutationId }}\''
@@ -688,6 +693,10 @@ else
 	############# Check needed programs installed #############
 	if ! command -v fzf >/dev/null; then
 		die_with_octocat "Fuzzy finder (fzf) was not found."
+	fi
+	USER_FZF_VERSION="$(fzf --version | awk '{print $1}')"
+	if [ "$(_version_number $MIN_FZF_VERSION)" -gt "$(_version_number "$USER_FZF_VERSION")" ]; then
+		die_with_octocat "Minimum required \`fzf\` version is: $MIN_FZF_VERSION (found: $USER_FZF_VERSION)"
 	fi
 	if command -v bat >/dev/null; then
 		BAT_OR_CAT="bat --color always --language md --style plain"
