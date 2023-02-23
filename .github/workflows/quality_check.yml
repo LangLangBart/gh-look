@@ -15,16 +15,11 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v3
 
-      - name: Vale Text Linter
-        # https://github.com/errata-ai/vale-action
-        uses: errata-ai/vale-action@reviewdog
-        with:
-          reporter: github-check
-          fail_on_error: false
-        env:
-          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+      - name: Spell Check
+        # https://github.com/crate-ci/typos
+        uses: crate-ci/typos@master
 
-      - name: shellcheck® setup
+      - name: Shell Check
         # https://github.com/reviewdog/action-shellcheck
         uses: reviewdog/action-shellcheck@v1
         with:
