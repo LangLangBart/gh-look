@@ -1,8 +1,0 @@
-ashtom
-cli/cli
-fzf
-gh
-OWNER/REPO
-repos
-keycastr
-me

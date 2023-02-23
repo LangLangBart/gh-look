@@ -96,23 +96,19 @@ linkStyle default stroke-width:1.5px
 ## 💪 Contributing
 
 ### Text validation
-`Vale` is a grammar, style, and word usage linter for the English language. The rules are set in the [.vale.ini](.vale.ini) file. It doesn't have a way to auto fix issues at the moment, this must be done manually.
+- [crate-ci/typos](https://github.com/crate-ci/typos)
+  - Finding and correcting spelling mistakes in the source code.
+  - Additional rules can be set in a `typos.toml` file.
+  - Autofixes mistakes.
 
 ```zsh
-# install, for example through Homebrew
-brew install vale
+# Installation
+brew install typos-cli
 
-
-# Downloading packages ...
-vale sync
-
-# check the repository
-vale .
-# see even suggestions
-vale --minAlertLevel=suggestion .
+# Typos
+# Autofix obvious typos
+typos -w
 ```
-
-* An optional installation of the [Vale extension](https://marketplace.visualstudio.com/items?itemName=errata-ai.vale-server) to display warnings and errors at once.
 
 ---
 

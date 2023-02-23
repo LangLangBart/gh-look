@@ -284,7 +284,7 @@ esc       │ Return to Issue list"'
 			_load_indicator "Restarting ..." 0.25
 			_fzf_issue 0s
 		else
-			printf "\nDiscarding... comment was not delted !!!"
+			printf "\nDiscarding... comment was not deleted !!!"
 			_load_indicator "Restarting ..." 0.25
 			_fzf_issue_comment
 		fi
