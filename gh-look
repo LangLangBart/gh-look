@@ -520,7 +520,7 @@ esc        │ Exit"'
 
 _fzf_search() {
 
-	GH_SEARCH=$'gh api graphql --raw-field query=\'query($filter: String!) { search(query: $filter, type: REPOSITORY, first: 25) { repositoryCount nodes { ... on Repository {description isFork name owner {login} primaryLanguage {name} pushedAt stargazerCount viewerHasStarred}}}}\' --template=\'
+	GH_SEARCH=$'gh api graphql --raw-field query=\'query($filter: String!) { search(query: $filter, type: REPOSITORY, first: 25) { repositoryCount nodes { ... on Repository {description isFork name owner {login} primaryLanguage {name} defaultBranchRef { target { ... on Commit { history(first: 1) { nodes { committedDate }}}}} stargazerCount viewerHasStarred}}}}\' --template=\'
 		{{- $limitCount := .data.search.repositoryCount -}}
 			{{- if gt .data.search.repositoryCount 25.0 -}}{{- $limitCount = 25.0 -}}{{- end -}}
 		{{- tablerow (printf "%.0f of ∑ %.0f Repos" $limitCount .data.search.repositoryCount | color "yellow") ("|" | color "white") ("? - Toggle Help" | color "blue") -}}{{- tablerender -}}
@@ -542,7 +542,11 @@ _fzf_search() {
 			{{- if eq $langName "JavaScript" }}{{- $langName = "" -}}
 				{{- else if eq $langName "Python" }}{{- $langName = "" -}}
 			{{ end -}}
-			{{- tablerow (printf "%s%s%s" (.owner.login | color "cyan+h") ("/" | color "gray+h") (.name | color "cyan+hb")) ($stargazerCount | color $stargazerColor) ($langName | color "green") (timeago .pushedAt | color "gray+h") .description -}}
+			{{- $time := "" -}}{{- /* NOTE: Possible a repo has no commits, have an conditional around the timeago function to be safe against nil condition. */ -}}
+				{{- range .defaultBranchRef.target.history.nodes -}}
+					{{- if .committedDate -}}{{- $time = (timeago .committedDate) -}}{{- end -}}
+				{{- end -}}
+			{{- tablerow (printf "%s%s%s" (.owner.login | color "cyan+h") ("/" | color "gray+h") (.name | color "cyan+hb")) ($stargazerCount | color $stargazerColor) ($langName | color "green") ($time | color "gray+h") .description -}}
 		{{- end -}}\''
 	SEARCH_OUTPUT=$(FZF_DEFAULT_COMMAND="$GH_SEARCH --raw-field filter=$INITIAL_QUERY --cache $CACHE_TIME" \
 		_fzf_basic_options \
@@ -609,7 +613,7 @@ pgdn(Fn+↓) │ Switch to Search
 esc        │ Exit"'
 
 _fzf_star() {
-	GH_STAR=$'gh api graphql --paginate --raw-field query=\'query($endCursor: String, $USER_NAME:String! ) { user(login:$USER_NAME) { starredRepositories(orderBy: { field: STARRED_AT direction: DESC }, first: 100, after: $endCursor) { totalCount pageInfo { hasNextPage, endCursor } nodes { name owner {login} primaryLanguage {name} stargazerCount viewerHasStarred pushedAt description }}}}\' --template \'
+	GH_STAR=$'gh api graphql --paginate --raw-field query=\'query($endCursor: String, $USER_NAME:String! ) { user(login:$USER_NAME) { starredRepositories(orderBy: { field: STARRED_AT direction: DESC }, first: 100, after: $endCursor) { totalCount pageInfo { hasNextPage, endCursor } nodes { name owner {login} primaryLanguage {name} stargazerCount viewerHasStarred defaultBranchRef { target { ... on Commit { history(first: 1) { nodes { committedDate }}}}} description }}}}\' --template \'
 		{{- tablerow (printf "∑ %.0f Starred Repos" .data.user.starredRepositories.totalCount | color "yellow+h") ( "|" | color "white") ("? - Toggle Help" | color "blue") -}}{{- tablerender -}}
 		{{- tablerow "" -}}{{- tablerender -}}
 		{{- $headerColor := "yellow+b" -}}
@@ -630,7 +634,9 @@ _fzf_star() {
 				{{- else if eq $langName "Python" }}{{- $langName = "" -}}
 			{{ end -}}
 		{{- $time := "" -}}{{- /* NOTE: Possible a repo has no commits, have an conditional around the timeago function to be safe against nil condition. */ -}}
-			{{- if .pushedAt -}}{{- $time = (timeago .pushedAt) -}}{{- end -}}
+			{{- range .defaultBranchRef.target.history.nodes -}}
+				{{- if .committedDate -}}{{- $time = (timeago .committedDate) -}}{{- end -}}
+			{{- end -}}
 		{{- tablerow (printf "%s%s%s" (.owner.login | color "cyan+h") ("/" | color "gray+h") (.name | color "cyan+hb")) ($stargazerCount | color $stargazerColor) ($langName | color "green") ($time | color "gray+h") .description -}}
 		{{- end -}}\''
 
