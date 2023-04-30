@@ -94,20 +94,23 @@ linkStyle default stroke-width:1.5px
 ---
 
 ## 💪 Contributing
+Routine code checks are handled with the [pre-commit](https://github.com/pre-commit/pre-commit) hook, customizations are done in the [.pre-commit-config.yaml](.pre-commit-config.yaml).
 
-### Text validation
-- [crate-ci/typos](https://github.com/crate-ci/typos)
-  - Finding and correcting spelling mistakes in the source code.
-  - Additional rules can be set in a `typos.toml` file.
-  - Autofixes mistakes.
+> *Pre-commit is a multi-language package manager for pre-commit hooks. You specify a list of hooks you want and **pre-commit manages the installation and execution** of any hook written in any language before every commit. Source: [pre-commit introduction](https://pre-commit.com/#introduction)*
 
 ```zsh
-# Installation
-brew install typos-cli
+# install through homebrew or pip
+brew pre-commit
+pip install pre-commit
 
-# Typos
-# Autofix obvious typos
-typos -w
+# install the git hook scripts
+pre-commit install --hook-type commit-msg --hook-type pre-commit
+# pre-commit installed at .git/hooks/commit-msg
+# pre-commit installed at .git/hooks/pre-commit
+
+# hook location
+.git/hooks/pre-commit
+.git/hooks/commit-msg
 ```
 
 ---
