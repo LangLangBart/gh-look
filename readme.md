@@ -2,7 +2,7 @@
 
 # gh look
 
-Drop an emoji, write comments, star repositories, read the preview or browse the issue tracker. All interactively by combining `gh` with `fzf`.
+Drop an emoji, write comments, star repositories, check workflow progress, browse issue trackers, search for repositories, ... all interactively by combining `gh` with `fzf`.
 
 ![](https://user-images.githubusercontent.com/92653266/210178720-24bc78ef-5ae6-414c-8007-862a2a8f087e.gif)
 
@@ -11,9 +11,9 @@ Drop an emoji, write comments, star repositories, read the preview or browse the
 ---
 
 ## 💻 Requirements
-Install [Fuzzy Finder (fzf)](https://github.com/junegunn/fzf#installation)  and the [GitHub command line tool (gh)](https://github.com/cli/cli#installation), for example through Homebrew.
-
-Optionally, also install [bat](https://github.com/sharkdp/bat#installation) to beautify the preview.
+- [bat](https://github.com/sharkdp/bat#installation) - preview looks better
+- [Fuzzy Finder (fzf)](https://github.com/junegunn/fzf#installation) - allow for interaction with listed data
+- [GitHub command line tool (gh)](https://github.com/cli/cli#installation) - get the data from Github
 
 ```zsh
 brew install fzf gh bat
@@ -30,65 +30,48 @@ gh ext remove LangLangBart/gh-look
 
 ## 👨‍💻 Usage
 
+```sh
+gh look [Commands] [Flags] [Search term]
 ```
-gh look [Command] [-Flags] [Search term]
-```
 
-| Command | Description                                                     | Example                               |
-| :------ | :-------------------------------------------------------------- | :------------------------------------ |
-| issue   | List Issues                                                     | gh look issue -r cli/cli involves:@me |
-| pr      | List Pull Requests                                              | gh look pr                            |
-| search  | Search 🔎 for GitHub repos                                       | gh look search keycastr               |
-| star    | List starred ⭐️ repos (sorted by the time the user set the star) | gh look star                          |
+| Command   | Description                    | Example                               |
+| :-------- | :----------------------------- | :------------------------------------ |
+| i, issue  | List Issues                    | gh look issue -r cli/cli involves:@me |
+| h, help   | Help                           | gh look h                             |
+| p, pr     | List Pull Requests             | gh look pr -h                         |
+| r, run    | List Workflow Runs             | gh look run -r microsoft/vscode -n 20 |
+| s, search | Search for GitHub Repositories | gh look search -w keycastr            |
+| st, star  | List Starred Repositories      | gh look star -u ashtom                |
 
-| Flags | All commands                                                        | Example                     |
-| :---- | :------------------------------------------------------------------ | :-------------------------- |
-| -c    | Cache the response, for example `30s`, `15m`, `1h` (default: `20s`) | gh look star -c 15m         |
-| -w    | Display the preview window upon start (default: hidden)             | gh look issue -w -r cli/cli |
-
-| Flags | Issue/ pr command                                    | Example                      |
-| :---- | :--------------------------------------------------- | :--------------------------- |
-| -e    | Emoji to make a reaction[^1] (default: THUMBS_UP 👍 ) | gh look pr -e CONFUSED       |
-| -o    | sorting order[^2] (default: created-desc)            | gh look issue -o updated-asc |
-| -r    | Specify a repository (form: OWNER/REPO)              | gh look pr -r cli/cli        |
-
-| Flags | Star ⭐️ command             | Example                |
-| :---- | :------------------------- | :--------------------- |
-| -u    | List stars of another user | gh look star -u ashtom |
-
-
-[^1]: Valid emojis {THUMBS_UP 👍, THUMBS_DOWN 👎, LAUGH 😄, HOORAY 🎉, CONFUSED 😕, HEART ❤️, ROCKET 🚀, EYES 👀}
-[^2]: Valid Ordering options {author-date,committer-date,created,interactions,reactions,updated}-{desc,asc}
-  [GitHub Docs - Searching on GitHub](https://docs.github.com/en/search-github/searching-on-github)
-
+- see available `Flags` for each command with `gh look [Command] -h`
 
 ### Hotkeys
 - <kbd>?</kbd> shows a list of specific hotkeys defined for each command.
-- <kbd>pgup</kbd>/<kbd>pgdn</kbd> switches between commands (macOS <kbd>fn+↑</kbd>/<kbd>fn+↓</kbd>), comments can be reached with <kbd>enter</kbd>/<kbd>esc</kbd>.
+- <kbd>shift-up</kbd>/<kbd>shift-down</kbd> switches between commands, comments can be reached with <kbd>enter</kbd>/<kbd>esc</kbd>.
 
 ```mermaid
 %% GitHub seems to not display fontawesome icons
+%% https://fontawesome.com/search
 %% https://mermaid.js.org/syntax/flowchart.html#basic-support-for-fontawesome
 flowchart BT
-    Stars([fa:fa-user Stars])-->|pgdn| Search([fa:fa-magnifying-glass Search])
-    Search -->|pgup| Stars
-    Search -->|pgdn| Issues
-    Issues -->|pgup| Search
-
+    Search([fa:fa-magnifying-glass Search]) -->|shift-up| Stars([fa:fa-user Stars])
+    Stars-->|shift-down| Search
+    Search -->|shift-down| Issues
+    Issues -->|shift-up| Search
     subgraph Issue_and_PR[fa:fa-nonsenseValue]
-        direction BT
-        Issues([fa:fa-circle-dot Issues]) --> |pgdn|PullRequests([fa:fa-code-pull-request Pull Requests])
-        PullRequests --> |pgup| Issues
+        Issues([fa:fa-circle-dot Issues]) --> |shift-down|PullRequests([fa:fa-code-pull-request Pull Requests])
+        PullRequests --> |shift-up| Issues
     end
-    subgraph Comment[fa:fa-nonsenseValue]
-        Comments([fa:fa-comments Comments])
+    Comments([fa:fa-comments Comments])  <-. Enter/Esc .-> Issue_and_PR
+    subgraph Workflow[fa:fa-nonsenseValue]
+        Workflows([fa:fa-circle-play Workflow Runs])
     end
-    Issue_and_PR -->|enter| Comments
-    Comments -->|esc| Issue_and_PR
+    PullRequests -->|shift-down| Workflows
+    Workflows -->|shift-up| PullRequests
 
-style Issue_and_PR fill:transparent,stroke-width:0.8px,stroke:#5b387c90
-style Comment fill:transparent,stroke-width:0px
 linkStyle default stroke-width:1.5px
+style Workflow fill:transparent,stroke-width:0px
+style Issue_and_PR fill:transparent,stroke-width:0.px,stroke:#5b387c90
 ```
 
 ---
@@ -119,3 +102,8 @@ pre-commit install --hook-type commit-msg --hook-type pre-commit
 
 ### Strange icons
 - [NERD FONT](https://www.nerdfonts.com/cheat-sheet) icons are being used. If you see some `strange` icons, follow the steps in the link to install a better font: [powerlevel10k#fonts](https://github.com/romkatv/powerlevel10k#fonts)
+
+### Options
+- Valid emojis {THUMBS_UP 👍, THUMBS_DOWN 👎, LAUGH 😄, HOORAY 🎉, CONFUSED 😕, HEART ❤️, ROCKET 🚀, EYES 👀}
+- Valid Ordering options {author-date,committer-date,created,interactions,reactions,updated}-{desc,asc}
+  [GitHub Docs - Searching on GitHub](https://docs.github.com/en/search-github/searching-on-github)
