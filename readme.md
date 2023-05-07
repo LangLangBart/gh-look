@@ -54,7 +54,7 @@ gh look [Commands] [Flags] [Search term]
 %% https://mermaid.js.org/syntax/flowchart.html#basic-support-for-fontawesome
 flowchart BT
 
-    Help([fa:fa-circle-question Help])
+    Help([fa:fa-circle-question Help Preview])
     Stars & Search & Issues & PullRequests  & Workflows -->|?| Help
     Search([fa:fa-magnifying-glass Search]) -->|shift-up| Stars([fa:fa-user Stars])
     Stars-->|shift-down| Search

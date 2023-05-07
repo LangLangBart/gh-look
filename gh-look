@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
 # -e : immediately exit if any command has a non-zero exit status.
 # -u : program to immediately exit on references for any variable you haven't previously defined
@@ -6,13 +6,17 @@ set -euo pipefail
 
 # <------------------- TODOs -------------------- >
 
-# TODO the statement [[...]] && ... || ... is a typical bash pitfall case, if the command after && fails the command after || gets executed as well (it should not); use a simple if ... else ... statement
+# TODO: the statement [[...]] && ... || ... is a typical bash pitfall case, if the command after && fails the command after || gets executed as well (it should not); use a simple if ... else ... statement
 # https://mywiki.wooledge.org/BashPitfalls#cmd1_.26.26_cmd2_.7C.7C_cmd3
-# TODO When making a emoji reaction let the user choose from a list of valid emojis, currently it only doees on start up
-# TODO If there is a merge event on a PR, don't display the "close" event as well https://pkg.go.dev/text/template
-# TODO sometimes when searching for a popular repo like "vscode, tsx,..." it does not give the result on the first try and you have to reload with "ctrl+r". INVESTIGATE, why this is!
-# TODO disable comments that are marked as spam, use "isMinimized" or "minimizedReason"
+# TODO: When making a emoji reaction let the user choose from a list of valid emojis, currently it only doees on start up
+# TODO: If there is a merge event on a PR, don't display the "close" event as well https://pkg.go.dev/text/template
+# TODO: sometimes when searching for a popular repo like "vscode, tsx,..." it does not give the result on the first try and you have to reload with "ctrl+r". INVESTIGATE, why this is!
+# TODO: disable comments that are marked as spam, use "isMinimized" or "minimizedReason"
 # TODO: find a better way to manage the help section for each command, currently too much duplication.
+# TODO: run tests on the script
+# TODO: make the listed elements in the workflow run section more colorful
+# TODO: allow the user to set their hotkeys in a config file
+# TODO: when the user sets the "-o" flag, let the user choose from a list of valid sorting options with fzf
 
 # <------------------- VARIABLES -------------------- >
 
@@ -672,7 +676,7 @@ EOF
 }
 
 fzf_workflow_run_function() {
-	INITIAL_WORKFLOW_PROMPT="Workflow Runs $(printf "[%s]" "$OWNER_REPO_NAME")"
+	INITIAL_WORKFLOW_PROMPT="Workflow Runs  $(printf "[%s]" "$OWNER_REPO_NAME")"
 	GH_WORKFLOWS_COMMAND="gh api --cache ${UPDATE_TIME}s --method GET --raw-field exclude_pull_requests=$EXCLUDE_PULL_REQUESTS --field per_page=$NUMBER_WORKFLOW_RUN_LIST repos/$OWNER_REPO_NAME/actions/runs "$'--jq \'["ID", "URL", "STATUS", "🏁", "⌛️", "DATE", "WORKFLOW", "BRANCH", "TITLE"], (.workflow_runs[] | [.id, .html_url, .status, (if (.conclusion == null and .status == null) then " " elif .conclusion == null then .status else .conclusion end), ((if .status == "in_progress" then now else (.updated_at | fromdateiso8601) end) - (.created_at | fromdateiso8601) | (./60|floor)+(.%60/60*100|round/100) | .*100|round/100), (.created_at | fromdateiso8601) as $time_sec | if ((now - $time_sec) / 3600) < 1 then ((now - $time_sec) / 60 | floor) | tostring + "min ago" elif ((now - $time_sec) / 3600) < 24 then ((now - $time_sec) / 3600 | floor) | tostring + "h ago" else ($time_sec | strftime("%d/%b/%y")) end, .name, .head_branch, .display_title]) | @tsv\' | column -t -s "\t"'
 
 	OUTPUT_SELECTION=$(FZF_DEFAULT_COMMAND="$GH_WORKFLOWS_COMMAND" \
@@ -766,7 +770,7 @@ fzf_search_function() {
 		_fzf_basic_options \
 		--disabled \
 		--prompt "Search  repos > " \
-		--header "" --header-lines 3 \
+		--header-lines 3 \
 		--preview "gh repo view {1}" --preview-window wrap:"$PREVIEW_WINDOW_VISIBILITY" \
 		--query "$INITIAL_QUERY" --exact \
 		--bind "change:first+reload-sync:$GH_SEARCH_COMMAND --raw-field filter={q} --cache $CACHE_TIME || true" \
@@ -862,7 +866,7 @@ fzf_star_function() {
 
 	OUTPUT_SELECTION=$(FZF_DEFAULT_COMMAND="$GH_STAR_COMMAND --raw-field USER_NAME=$USER_NAME --cache $CACHE_TIME" \
 		_fzf_basic_options --nth 1,3,7.. \
-		--prompt $'\e[1;93mSearch  stars'" [$USER_NAME] > " --header "" --header-lines 3 \
+		--prompt $'\e[1;93mSearch  stars'" [$USER_NAME] > " --header-lines 3 \
 		--preview "gh repo view {1}" --preview-window wrap:"$PREVIEW_WINDOW_VISIBILITY" \
 		--query "$INITIAL_QUERY" --exact \
 		--bind "?:toggle-preview+change-preview:echo '$(help_star_function)'" \
