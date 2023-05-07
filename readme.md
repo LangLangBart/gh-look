@@ -43,35 +43,42 @@ gh look [Commands] [Flags] [Search term]
 | s, search | Search for GitHub Repositories | gh look search -w keycastr            |
 | st, star  | List Starred Repositories      | gh look star -u ashtom                |
 
-- see available `Flags` for each command with `gh look [Command] -h`
+- see available `Flags` for each command with `gh look [Command] -h` or interactively with <kbd>?</kbd>
 
 ### Hotkeys
-- <kbd>?</kbd> shows a list of specific hotkeys defined for each command.
-- <kbd>shift-up</kbd>/<kbd>shift-down</kbd> switches between commands, comments can be reached with <kbd>enter</kbd>/<kbd>esc</kbd>.
+- <kbd>shift-up</kbd>/<kbd>shift-down</kbd> switches between commands
 
 ```mermaid
 %% GitHub seems to not display fontawesome icons
 %% https://fontawesome.com/search
 %% https://mermaid.js.org/syntax/flowchart.html#basic-support-for-fontawesome
 flowchart BT
+
+    Help([fa:fa-circle-question Help])
+    Stars & Search & Issues & PullRequests  & Workflows -->|?| Help
     Search([fa:fa-magnifying-glass Search]) -->|shift-up| Stars([fa:fa-user Stars])
     Stars-->|shift-down| Search
     Search -->|shift-down| Issues
     Issues -->|shift-up| Search
+
     subgraph Issue_and_PR[fa:fa-nonsenseValue]
         Issues([fa:fa-circle-dot Issues]) --> |shift-down|PullRequests([fa:fa-code-pull-request Pull Requests])
         PullRequests --> |shift-up| Issues
     end
-    Comments([fa:fa-comments Comments])  <-. Enter/Esc .-> Issue_and_PR
+
     subgraph Workflow[fa:fa-nonsenseValue]
         Workflows([fa:fa-circle-play Workflow Runs])
     end
-    PullRequests -->|shift-down| Workflows
-    Workflows -->|shift-up| PullRequests
 
-linkStyle default stroke-width:1.5px
+    Workflows -->|shift-up| PullRequests
+    PullRequests -->|shift-down| Workflows
+
+    Comments([fa:fa-comments Comments])  <-- Enter/Esc --> Issue_and_PR
+
+
+linkStyle default stroke-width:0.8px
 style Workflow fill:transparent,stroke-width:0px
-style Issue_and_PR fill:transparent,stroke-width:0.px,stroke:#5b387c90
+style Issue_and_PR fill:transparent,stroke-width:0.5px,stroke:#5b387c90
 ```
 
 ---
@@ -103,7 +110,6 @@ pre-commit install --hook-type commit-msg --hook-type pre-commit
 ### Strange icons
 - [NERD FONT](https://www.nerdfonts.com/cheat-sheet) icons are being used. If you see some `strange` icons, follow the steps in the link to install a better font: [powerlevel10k#fonts](https://github.com/romkatv/powerlevel10k#fonts)
 
-### Options
-- Valid emojis {THUMBS_UP 👍, THUMBS_DOWN 👎, LAUGH 😄, HOORAY 🎉, CONFUSED 😕, HEART ❤️, ROCKET 🚀, EYES 👀}
-- Valid Ordering options {author-date,committer-date,created,interactions,reactions,updated}-{desc,asc}
-  [GitHub Docs - Searching on GitHub](https://docs.github.com/en/search-github/searching-on-github)
+### Ordering options
+- to change the order in which elements are listed see for details: [GitHub Docs - Searching on GitHub](https://docs.github.com/en/search-github/searching-on-github)
+  - Valid Ordering options: {author-date,committer-date,created,interactions,reactions,updated}-{desc,asc}
