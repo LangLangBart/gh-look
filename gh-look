@@ -4,31 +4,53 @@ set -euo pipefail
 # -u : program to immediately exit on references for any variable you haven't previously defined
 # -o pipefail : any command in a pipeline that fails the return code will be used as the return code of the whole pipeline
 
-############# Helper functions #############
+# <------------------- TODOs -------------------- >
 
-# More ideas: https://raw.githubusercontent.com/sindresorhus/cli-spinners/master/spinners.json
-SPIN_FORM=(▰▱▱▱▱▱▱ ▰▰▱▱▱▱▱ ▰▰▰▱▱▱▱ ▰▰▰▰▱▱▱ ▰▰▰▰▰▱▱ ▰▰▰▰▰▰▱ ▰▰▰▰▰▰▰)
-# Restarting fzf immediately may not show the newly created changes. Wait at least a second or two.
-_load_indicator() {
-	printf "\n\n%s\n" "$1"
-	for i in "${SPIN_FORM[@]}"; do
-		echo -ne "\r$i"
-		sleep "$2"
-	done
-}
+# TODO the statement [[...]] && ... || ... is a typical bash pitfall case, if the command after && fails the command after || gets executed as well (it should not); use a simple if ... else ... statement
+# https://mywiki.wooledge.org/BashPitfalls#cmd1_.26.26_cmd2_.7C.7C_cmd3
+# TODO When making a emoji reaction let the user choose from a list of valid emojis, currently it only doees on start up
+# TODO If there is a merge event on a PR, don't display the "close" event as well https://pkg.go.dev/text/template
+# TODO sometimes when searching for a popular repo like "vscode, tsx,..." it does not give the result on the first try and you have to reload with "ctrl+r". INVESTIGATE, why this is!
+# TODO disable comments that are marked as spam, use "isMinimized" or "minimizedReason"
+# TODO: find a better way to manage the help section for each command, currently too much duplication.
 
-# Redefine this function to change the fzf options
-# https://github.com/junegunn/fzf-git.sh/blob/main/fzf-git.sh#L104
-_fzf_basic_options() {
-	# Hint: tablerow truncates the table columns to fit the entire table in the current terminal window.
-	# The workaround to avoid the truncation is to force a really wide terminal with GH_FORCE_TTY=10000.
-	GH_FORCE_TTY=10000 fzf -- \
-		--ansi --layout reverse --info inline --no-multi --height 100% \
-		--header '' --ellipsis '' --border horizontal \
-		--no-separator \
-		--preview-window "$PREVIEW_WINDOW_VISIBILITY:wrap:right:65%:border-left" \
-		--bind 'btab:change-preview-window(50%:nohidden|65%:down:nohidden:border-top|nohidden)' \
-		"$@"
+# <------------------- VARIABLES -------------------- >
+
+SORTING_ORDER=""
+OWNER_REPO_NAME=""
+USER_NAME=""
+PREVIEW_WINDOW_VISIBILITY="hidden"
+INITIAL_QUERY=""
+INITIAL_COMMENT_QUERY=""
+OUTPUT_SELECTION=""
+BAT_OR_CAT="cat"
+# for better speed
+CACHE_TIME="20s"
+# minimum required fzf version, using "become(...)"
+# https://github.com/junegunn/fzf/releases
+MIN_FZF_VERSION="0.38.0"
+# workflow runs
+UPDATE_TIME=10
+EXCLUDE_PULL_REQUESTS=true
+NUMBER_WORKFLOW_RUN_LIST=20
+# colors
+COLOR_RESET=$'\e[0m'
+GREEN_NORMAL=$'\e[0;92m'
+WHITE_BOLD=$'\e[1;97m'
+
+# emojis
+REACTION_EMOJI="THUMBS_UP"
+valid_emojis=("👍:THUMBS_UP" "👎:THUMBS_DOWN" "😄:LAUGH" "🎉:HOORAY" "😕:CONFUSED" "💖:HEART" "🚀:ROCKET" "👀:EYES")
+GH_ADD_REACTION=$'gh api graphql --silent --raw-field query=\'mutation($id: ID! $emoji: ReactionContent! ) { addReaction(input: {subjectId: $id content: $emoji }) { clientMutationId }}\''
+GH_REMOVE_REACTION=$'gh api graphql --silent --raw-field query=\'mutation($id: ID! $emoji: ReactionContent! ) { removeReaction(input: {subjectId: $id content: $emoji }) { clientMutationId }}\''
+
+# <--------------- HELPER FUNCTIONS ---------------- >
+
+_die_with_octocat() {
+	GH_PAGER="cat" gh api octocat
+	printf "\e[1;91m[%s] < ERROR > %s\e[0m" "$(date +"%H:%M:%S")" "${1:?"No error message has been defined."}"
+	printf "\n%s\n" "${2:-}"
+	exit 1
 }
 
 # for comparing multi-digit version numbers https://apple.stackexchange.com/a/123408/11374
@@ -36,42 +58,82 @@ _version_number() {
 	echo "$@" | awk -F. '{ printf("%d%03d%03d%03d\n", $1,$2,$3,$4); }'
 }
 
-die_with_octocat() {
-	GH_PAGER="cat" gh api octocat
-	printf "\e[1;91m[%s] < ERROR > %s\e[0m\n" "$(date +"%H:%M:%S")" "$@"
-	exit 1
+# Here options are defined that are common to all commands.
+# https://github.com/junegunn/fzf-git.sh/blob/main/fzf-git.sh#L104
+_fzf_basic_options() {
+	# Hint: tablerow truncates the table columns to fit the entire table in the current terminal window.
+	# The workaround to avoid the truncation is to force a really wide terminal with GH_FORCE_TTY=10000.
+	# IMPORTNAT: anything after "$@" will overwrite options in the actual command
+	GH_FORCE_TTY=10000 fzf -- \
+		--header '' \
+		"$@" \
+		--ansi --layout reverse --info inline --no-multi --height 100% \
+		--ellipsis '' --border horizontal \
+		--no-separator --print-query \
+		--preview-window "$PREVIEW_WINDOW_VISIBILITY:wrap:right:65%:border-left" \
+		--bind 'btab:change-preview-window(50%:nohidden|65%:down:nohidden:border-top|nohidden)' \
+		--bind 'ctrl-w:preview-half-page-up,ctrl-s:preview-half-page-down'
 }
 
-############# Colors #############
+# More ideas: https://raw.githubusercontent.com/sindresorhus/cli-spinners/master/spinners.json
+SPIN_FORM=(▰▱▱▱▱▱▱ ▰▰▱▱▱▱▱ ▰▰▰▱▱▱▱ ▰▰▰▰▱▱▱ ▰▰▰▰▰▱▱ ▰▰▰▰▰▰▱ ▰▰▰▰▰▰▰)
+# Restarting fzf immediately may not show the newly created changes. Wait at least a second or two.
+_load_indicator() {
+	printf "\n\n%s\n" "${1:-"Restarting ..."}"
+	for i in "${SPIN_FORM[@]}"; do
+		echo -ne "\r$i"
+		sleep "${2:-"0.2"}"
+	done
+}
 
-# https://misc.flogisoft.com/bash/tip_colors_and_formatting
-COLOR_RESET=$'\e[0m' # Text Reset
-GREEN_NORMAL=$'\e[0;92m'
-WHITE_BOLD=$'\e[1;97m'
+# return the emoji from its corresponding string name
+_emoji_from_name() {
+	for emoji in "${valid_emojis[@]}"; do
+		if [[ "${emoji#*:}" == "$1" ]]; then
+			echo "${emoji%%:*}"
+			break
+		fi
+	done
+}
 
-############# Manual #############
-HELP_GENERAL=$(
+# choose a valid emoji from a list
+_emoji_picker() {
+	for emoji in "${valid_emojis[@]}"; do
+		echo "${emoji%%:*} ${emoji#*:}"
+	done |
+		_fzf_basic_options \
+			--header "Pick an emoji and hit enter" \
+			--bind 'enter:become:echo {2}' \
+			--delimiter ' '
+}
+
+# <--------------- FUNCTIONS ---------------- >
+
+help_general_function() {
 	cat <<EOF
 ${WHITE_BOLD}Usage${COLOR_RESET}
   gh look [Commands] [Flags] [Search term]
 
 ${WHITE_BOLD}Commands${COLOR_RESET}
-  ${GREEN_NORMAL}issue ${COLOR_RESET}  List Issues
-  ${GREEN_NORMAL}pr    ${COLOR_RESET}  List Pull Requests
-  ${GREEN_NORMAL}search${COLOR_RESET}  Search for GitHub repos
-  ${GREEN_NORMAL}star  ${COLOR_RESET}  List starred repositories
+  ${GREEN_NORMAL} i, issue ${COLOR_RESET}  List Issues
+  ${GREEN_NORMAL} h, help  ${COLOR_RESET}  Help
+  ${GREEN_NORMAL} p, pr    ${COLOR_RESET}  List Pull Requests
+  ${GREEN_NORMAL} r, run   ${COLOR_RESET}  List Workflow Runs
+  ${GREEN_NORMAL} s, search${COLOR_RESET}  Search for GitHub Repositories
+  ${GREEN_NORMAL}st, star  ${COLOR_RESET}  List Starred Repositories
 EOF
-)
+}
 
-HELP_ISSUE_SECTION=$(
+help_issue_function() {
 	cat <<EOF
 ${WHITE_BOLD}Usage${COLOR_RESET}
-  gh look issue [Flags] [Search term]
+  gh look [ i | issue ] [Flags] [Search term]
 
 ${WHITE_BOLD}Flags${COLOR_RESET}
   ${GREEN_NORMAL}<none>${COLOR_RESET}  List Issues from current directory
   ${GREEN_NORMAL}-c    ${COLOR_RESET}  Cache the response, for example "30s", "15m", "1h" (default: 20s)
-  ${GREEN_NORMAL}-e    ${COLOR_RESET}  Emoji to make a reaction (default: THUMBS_UP 👍)
+  ${GREEN_NORMAL}-e    ${COLOR_RESET}  Emoji to make a reaction (default: 👍)
+  ${GREEN_NORMAL}-h    ${COLOR_RESET}  Help
   ${GREEN_NORMAL}-o    ${COLOR_RESET}  sorting order of Issues (default: created-desc)
   ${GREEN_NORMAL}-r    ${COLOR_RESET}  Specify a repository (form: OWNER/REPO)
   ${GREEN_NORMAL}-w    ${COLOR_RESET}  Display the preview window upon start (default: hidden)
@@ -92,24 +154,26 @@ ${WHITE_BOLD}Hotkeys${COLOR_RESET}
   ${GREEN_NORMAL}ctrl+g    ${COLOR_RESET}  Close Issue after confirmation
   ${GREEN_NORMAL}ctrl+n    ${COLOR_RESET}  New Issue
   ${GREEN_NORMAL}ctrl+o    ${COLOR_RESET}  OPEN Issues only
+  ${GREEN_NORMAL}ctrl+p    ${COLOR_RESET}  Put "involves:@me" into the search
   ${GREEN_NORMAL}ctrl+r    ${COLOR_RESET}  Reload
-  ${GREEN_NORMAL}ctrl+t    ${COLOR_RESET}  React with an Emoji
-  ${GREEN_NORMAL}ctrl+u    ${COLOR_RESET}  Undo the Emoji reaction
+  ${GREEN_NORMAL}ctrl+t    ${COLOR_RESET}  React with $(_emoji_from_name "$REACTION_EMOJI") emoji
+  ${GREEN_NORMAL}ctrl+u    ${COLOR_RESET}  Undo the $(_emoji_from_name "$REACTION_EMOJI") emoji reaction
+  ${GREEN_NORMAL}ctrl+w/s  ${COLOR_RESET}  Scroll the preview up/down
   ${GREEN_NORMAL}ctrl+x    ${COLOR_RESET}  Write a comment
-  ${GREEN_NORMAL}pgup(Fn+↑)${COLOR_RESET}  Switch to Search
-  ${GREEN_NORMAL}pgdn(Fn+↓)${COLOR_RESET}  Switch to Pull Requests
+  ${GREEN_NORMAL}shift+up  ${COLOR_RESET}  Switch to Search
+  ${GREEN_NORMAL}shift+down${COLOR_RESET}  Switch to Pull Requests
   ${GREEN_NORMAL}esc       ${COLOR_RESET}  Exit
 EOF
-)
+}
 
-_fzf_issue() {
+fzf_issue_function() {
 	GH_ISSUE_PREVIEW=$'gh api graphql --paginate --raw-field id={1} --raw-field query=\'query($id: ID!, $endCursor: String){node(id: $id) { ... on Issue { author { login } body createdAt comments(first: 100) { totalCount nodes { author { login } body createdAt viewerDidAuthor reactionGroups { content reactors(last: 4) { totalCount nodes { ... on User { login }}}}}} timelineItems(itemTypes: [CLOSED_EVENT, ISSUE_COMMENT, REOPENED_EVENT], first: 100, after: $endCursor) { nodes { ... on ClosedEvent { actor { login } closer { ... on PullRequest { baseRepository { nameWithOwner } number }} createdAt stateReason } ... on IssueComment { author { login } body createdAt viewerDidAuthor reactionGroups { content reactors(last: 4) { totalCount nodes { ... on User { login }}}} reactionGroups { content viewerHasReacted reactors(last: 4) { nodes { ... on User { login }} totalCount }}} ... on ReopenedEvent { actor { login } createdAt stateReason }} pageInfo { hasNextPage endCursor }} labels(first:10) { nodes { name } } number reactionGroups { content viewerHasReacted reactors(last: 4) { nodes { ... on User { login }} totalCount }} state title viewerDidAuthor }}}\' --template \'{{- $prefix := .data.node -}}{{- $stateIssueColor := "green+b" -}}{{- if eq $prefix.state "CLOSED" -}}{{- $stateIssueColor = "93+b" -}}{{- end -}}{{- $issueAuthor := "[DELETED_USER]" -}}{{- if $prefix.author -}}{{- $issueAuthor = $prefix.author.login -}}{{- end -}}{{- $authorColor := "cyan+hb" -}}{{- if $prefix.viewerDidAuthor -}}{{- $authorColor = "yellow+bh" -}}{{- end -}}{{- tablerow ($prefix.title | color "white+bh") -}}{{- tablerender -}}{{- tablerow (printf "%s ◉ #%.0f" $prefix.state $prefix.number | color $stateIssueColor) ($issueAuthor | color $authorColor) (printf "│ %s ∙ %.0f Comments │" (timeago $prefix.createdAt) $prefix.comments.totalCount | color "gray+h") -}}{{- tablerender -}}{{- if $prefix.labels.nodes -}}{{- tablerow ("Labels:" | color "white+b") (pluck "name" $prefix.labels.nodes | join ", " | printf "[ %s ]" | color "white") -}}{{- tablerender -}}{{- end -}}{{- range $prefix.reactionGroups -}}{{ $emoji := .content }}{{ if eq .content "CONFUSED" }}{{ $emoji = "😕" }}{{ else if eq .content "EYES" }}{{ $emoji = "👀" }}{{ else if eq .content "HEART" }}{{ $emoji = "💖" }}{{ else if eq .content "HOORAY" }}{{ $emoji = "🎉" }}{{ else if eq .content "LAUGH" }}{{ $emoji = "😄" }}{{ else if eq .content "THUMBS_DOWN" }}{{ $emoji = "👎" }}{{ else if eq .content "THUMBS_UP" }}{{ $emoji = "👍" }}{{ else if eq .content "ROCKET" }}{{ $emoji = "🚀" }}{{ end }}{{ if gt .reactors.totalCount 0.0 }}{{ $emojiGiver := pluck "login" .reactors.nodes | join ", " | color "green+d" }}{{ if gt (pluck "login" .reactors.nodes | len ) 3 }}{{- /* NOTE: number of names limited */ -}}{{ $emojiGiver = slice (pluck "login" .reactors.nodes) 1 | join ", " | printf "%s, ..." | color "green+d" }}{{end}}{{- $emojiTotal := .reactors.totalCount | color "green+bd" -}}{{- if .viewerHasReacted -}}{{- $emojiTotal = .reactors.totalCount | color "yellow+bh" -}}{{- end -}}{{- tablerow (printf "%s %s" $emojiTotal $emoji) $emojiGiver -}}{{- tablerender -}}{{- end -}}{{- end }}{{- tablerow  ("——————————————————————————————————————————————————————————"| color "gray+d") -}}{{- tablerender -}}{{- tablerow "" -}}{{- tablerender -}}{{- $bodyText := $prefix.body }}{{ if eq ($bodyText | len) 0 -}}{{- $bodyText = " No description provided. " | color "white+i" -}}{{- end -}}{{- $bodyText -}}{{- tablerow "" -}}{{- tablerender -}}{{- tablerow "" -}}{{- tablerender -}}{{- tablerow "" -}}{{- tablerender -}}{{- range $prefix.timelineItems.nodes -}}{{- $actorTimeline := "[DELETED_USER]" -}}{{- if .actor -}}{{- $actorTimeline = .actor.login -}}{{- end -}}{{- $authorTimelineColor := "cyan+hb" -}}{{- if .viewerDidAuthor -}}{{- $authorTimelineColor = "yellow+bh" -}}{{- end -}}{{- if eq .stateReason "COMPLETED" "NOT_PLANNED" -}}{{- $stateClosedColor := "93+b" -}}{{- if eq .stateReason "NOT_PLANNED" -}}{{- $stateClosedColor = "gray+hb" -}}{{- end -}}{{- $linkedPR := "" -}}{{- if .closer -}}{{- $linkedPR = (printf "%s #%v" .closer.baseRepository.nameWithOwner .closer.number | color "blue+hb") -}}{{- end -}}{{- tablerow "" -}}{{- tablerender -}}{{- tablerow  ("◥■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■◤"| color $stateClosedColor) -}}{{- tablerender -}}{{- tablerow (printf "%s closed this as %s %s %s" ($actorTimeline | color $authorTimelineColor) (.stateReason | color $stateClosedColor) (timeago .createdAt | color "white+bh") $linkedPR) -}}{{- tablerender -}}{{- tablerow  ("◢■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■◣"| color $stateClosedColor) -}}{{- tablerender -}}{{- tablerow "" -}}{{- tablerender -}}{{- else if eq .stateReason "REOPENED" -}}{{- $stateReopenedColor := "green+b" -}}{{- tablerow "" -}}{{- tablerender -}}{{- tablerow  ("◥■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■◤"| color $stateReopenedColor) -}}{{- tablerender -}}{{- tablerow (printf "%s %s this Issue %s" ($actorTimeline | color $authorTimelineColor) (.stateReason | color $stateReopenedColor) (timeago .createdAt | color "white+bh")) -}}{{- tablerender -}}{{- tablerow  ("◢■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■◣"| color $stateReopenedColor) -}}{{- tablerender -}}{{- tablerow "" -}}{{- tablerender -}}{{- else -}}{{- $authorTimeline := "[DELETED_USER]" -}}{{- if .author -}}{{- $authorTimeline = .author.login -}}{{- end -}}{{- tablerow "" -}}{{- tablerender -}}{{- tablerow  ("◥■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■◤"| color "gray+d") -}}{{- tablerender -}}{{- tablerow ($authorTimeline | color $authorTimelineColor) ( timeago .createdAt | color "white+bh") -}}{{- tablerender -}}{{- range .reactionGroups -}}{{ $emojiInComment := .content }}{{ if eq .content "CONFUSED" }}{{ $emojiInComment = "😕" }}{{ else if eq .content "EYES" }}{{ $emojiInComment = "👀" }}{{ else if eq .content "HEART" }}{{ $emojiInComment = "💖" }}{{ else if eq .content "HOORAY" }}{{ $emojiInComment = "🎉" }}{{ else if eq .content "LAUGH" }}{{ $emojiInComment = "😄" }}{{ else if eq .content "THUMBS_DOWN" }}{{ $emojiInComment = "👎" }}{{ else if eq .content "THUMBS_UP" }}{{ $emojiInComment = "👍" }}{{ else if eq .content "ROCKET" }}{{ $emojiInComment = "🚀" }}{{ end }}{{ if gt .reactors.totalCount 0.0 }}{{ $emojiInCommentGiver := pluck "login" .reactors.nodes | join ", " | color "green+d" }}{{ if gt (pluck "login" .reactors.nodes | len ) 3 }}{{- /* NOTE: number of names limited */ -}}{{ $emojiInCommentGiver = slice (pluck "login" .reactors.nodes) 1 | join ", " | printf "%s, ..." | color "green+d" }}{{end}}{{- $emojiInCommentTotal := .reactors.totalCount | color "green+bd" -}}{{- if .viewerHasReacted -}}{{- $emojiInCommentTotal = .reactors.totalCount | color "yellow+bh" -}}{{- end -}}{{- tablerow (printf "%s %s" $emojiInCommentTotal $emojiInComment) $emojiInCommentGiver -}}{{- tablerender -}}{{- end -}}{{- end -}}{{- tablerow  ("‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥"| color "gray+d") -}}{{- tablerender -}}{{- tablerow "" -}}{{- tablerender -}}{{- .body -}}{{- tablerow "" -}}{{- tablerender -}}{{- tablerow "" -}}{{- tablerender -}}{{- end -}}{{- end -}}\''
 
 	# fzf allows hiding columns "--with-nth 2...", headers are also affected, so NODE_ID_HIDDEN is included there
 	GH_ISSUE_COMMAND=$'gh api graphql --raw-field query=\'query($filter: String!) {search(query: $filter, type: ISSUE, first: 35) {issueCount nodes { ... on Issue { author { login } comments {totalCount} id number updatedAt reactions { totalCount viewerHasReacted } state title viewerCanReact viewerDidAuthor }}}}\' --template \'
 		{{- $limitCount := .data.search.issueCount -}}
 			{{- if gt .data.search.issueCount 35.0 -}}{{- $limitCount = 35.0 -}}{{- end -}}
-		{{- tablerow "NODE_ID_HIDDEN" (printf "%.0f of ∑ %.0f" $limitCount .data.search.issueCount | color "blue+b") ("|" | color "white+d") ("? - Toggle Help" | color "blue") -}}{{- tablerender -}}
+		{{- tablerow "NODE_ID_HIDDEN" (printf "%.0f of ∑ %.0f" $limitCount .data.search.issueCount | color "blue+b") ("|" | color "white+d") ("? Help · esc Quit" | color "blue") -}}{{- tablerender -}}
 		{{- tablerow "" -}}{{- tablerender -}}
 		{{- $headerColor := "blue+b" -}}
 			{{- tablerow "NODE_ID_HIDDEN" ("ISSUE" | color $headerColor) ("AUTHOR" | color $headerColor) ("LAST UPDATE" | color $headerColor) "💬" "📣" ("TITLE" | color $headerColor) -}}
@@ -139,77 +203,99 @@ _fzf_issue() {
 
 	INITIAL_ISSUE_PROMPT=$(grep -q A <"$SCRATCH_FILE" && printf "Issues ◉ [%s] > " "$OWNER_REPO_NAME" || printf "\e[1;92mOPEN Issues ◉ [%s] > " "$OWNER_REPO_NAME")
 
-	ISSUE_OUTPUT=$(FZF_DEFAULT_COMMAND="(grep -q A <$SCRATCH_FILE && $GH_ISSUE_COMMAND --cache ${1:-$CACHE_TIME} --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME $INITIAL_QUERY \" || $GH_ISSUE_COMMAND --cache ${1:-$CACHE_TIME} --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME state:open $INITIAL_QUERY \") || true" \
+	OUTPUT_SELECTION=$(FZF_DEFAULT_COMMAND="(grep -q A <$SCRATCH_FILE && $GH_ISSUE_COMMAND --cache ${1:-$CACHE_TIME} --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME $INITIAL_QUERY \" || $GH_ISSUE_COMMAND --cache ${1:-$CACHE_TIME} --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME state:open $INITIAL_QUERY \") || true" \
 		_fzf_basic_options --disabled --header-lines 3 --with-nth 2.. \
 		--prompt "$INITIAL_ISSUE_PROMPT" \
 		--query "$INITIAL_QUERY" --preview "sleep 0.35; $GH_ISSUE_PREVIEW | $BAT_OR_CAT" \
 		--bind "change:first+reload-sync:sleep 0.25; (grep -q A <$SCRATCH_FILE && $GH_ISSUE_COMMAND --cache $CACHE_TIME --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME \"{q} || $GH_ISSUE_COMMAND --cache $CACHE_TIME --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME state:open \"{q}) || true" \
-		--bind "?:toggle-preview+change-preview:echo -e '$HELP_ISSUE_SECTION'" \
+		--bind "?:toggle-preview+change-preview:echo '$(help_issue_function)'" \
 		--bind "tab:toggle-preview+change-preview:sleep 0.35; $GH_ISSUE_PREVIEW | $BAT_OR_CAT" \
 		--bind "ctrl-a:rebind(change)+change-prompt(Issues ◉ [$OWNER_REPO_NAME] > )+disable-search+execute-silent(echo A >$SCRATCH_FILE)+reload-sync:$GH_ISSUE_COMMAND --cache $CACHE_TIME --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME \"{q} || true" \
 		--bind "ctrl-b:execute-silent(gh issue view {2} --web --repo $OWNER_REPO_NAME)" \
 		--bind $'ctrl-f:unbind(change)+enable-search+clear-query+change-prompt(\e[1;93mFUZZY SEARCH'" [$OWNER_REPO_NAME] > )" \
 		--bind $'ctrl-o:rebind(change)+change-prompt(\e[1;92mOPEN Issues ◉'" [$OWNER_REPO_NAME] > )+disable-search+execute-silent(echo B >$SCRATCH_FILE)+reload-sync:$GH_ISSUE_COMMAND --cache $CACHE_TIME --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME state:open \"{q} || true" \
+		--bind "ctrl-p:put(involves:@me)" \
 		--bind "ctrl-r:reload-sync:(grep -q A <$SCRATCH_FILE && $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME \"{q} || $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME state:open \"{q}) || true" \
 		--bind "ctrl-t:execute-silent($GH_ADD_REACTION --raw-field id={1} --raw-field emoji=$REACTION_EMOJI)+reload-sync:(grep -q A <$SCRATCH_FILE && $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME \"{q} || $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME state:open \"{q}) || true" \
 		--bind "ctrl-u:execute-silent($GH_REMOVE_REACTION --raw-field id={1} --raw-field emoji=$REACTION_EMOJI)+reload-sync:(grep -q A <$SCRATCH_FILE && $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME \"{q} || $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME state:open \"{q}) || true" \
-		--expect "ctrl-e,ctrl-g,ctrl-n,ctrl-x,enter,pgup,pgdn") || true
+		--expect "ctrl-e,ctrl-g,ctrl-n,ctrl-x,enter,shift-up,shift-down") || true
 
-	ISSUE_NUMBER=$(sed 1d <<<"${ISSUE_OUTPUT}" | awk '{print $2}' | tr -d "#")
-	case $(sed 1q <<<"${ISSUE_OUTPUT}") in
+	printed_query="$(sed 1q <<<"$OUTPUT_SELECTION")"
+	expected_key="$(sed '1d;3d' <<<"$OUTPUT_SELECTION")"
+	TICKET_NUMBER="$(sed '1d;2d' <<<"$OUTPUT_SELECTION" | awk '{print $2}' | tr -d "#")"
+	output_textline="$(sed '1d;2d' <<<"$OUTPUT_SELECTION" | awk '{$1=""; print $0}')"
+	number_comments="$(sed '1d;2d' <<<"$OUTPUT_SELECTION" | awk '{print $6,$7}' | grep -Eo '[0-9]+' || true)"
+	# reset the variable
+	OUTPUT_SELECTION=""
+	case "$expected_key" in
 	ctrl-e)
-		gh issue edit "$ISSUE_NUMBER" --repo "$OWNER_REPO_NAME"
-		_load_indicator "Restarting ..." 0.25
-		_fzf_issue 0s
+		gh issue edit "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME"
+		_load_indicator
+		INITIAL_QUERY="$printed_query"
+		fzf_issue_function 0s
 		;;
 	ctrl-g)
-		printf "\n%s\n\nCONFIRM CLOSURE (Y/n) " "$(sed 1d <<<"${ISSUE_OUTPUT}" | awk '{$1=""; print $0}')"
+		printf "\n%s\n\nCONFIRM CLOSURE (y/n) " "$output_textline"
 		stty raw -echo
 		CONFIRM=$(dd bs=1 count=1 2>/dev/null)
 		stty sane
 		if [[ "$CONFIRM" = "y" ]]; then
-			printf "\n\nDo you want to add a comment??? (Y/n) "
+			printf "\n\nDo you want to add a comment? (y/n) "
 			stty raw -echo
 			CONFIRM=$(dd bs=1 count=1 2>/dev/null)
 			stty sane
 			if [[ "$CONFIRM" = "y" ]]; then
-				read -rp "Enter a comment: " MESSAGE
-				gh issue close "$ISSUE_NUMBER" --repo "$OWNER_REPO_NAME" --comment "$MESSAGE" 2>/dev/null && printf "\n🟢 Success.... Issue closed\n" || printf "\n🛑 Missing permissions to close this Issue. !!!\n"
+				read -rp "Enter a comment: " message
+				gh issue close "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME" --comment "$message" 2>/dev/null && printf "\n🟢 Success.... Issue closed\n" || printf "\n🛑 Missing permissions to close this Issue!\n"
 			else
-				gh issue close "$ISSUE_NUMBER" --repo "$OWNER_REPO_NAME" 2>/dev/null && printf "\n🟢 Success.... Issue closed\n" || printf "\n🛑 Missing permissions to close this Issue. !!!\n"
+				gh issue close "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME" 2>/dev/null && printf "\n🟢 Success.... Issue closed\n" || printf "\n🛑 Missing permissions to close this Issue!\n"
 			fi
-			_load_indicator "Restarting ..." 0.25
-			_fzf_issue 0s
+			_load_indicator
+			INITIAL_QUERY="$printed_query"
+			fzf_issue_function 0s
 		else
-			printf "\nDiscarding... Issue was not closed !!!"
-			_load_indicator "Restarting ..." 0.25
-			_fzf_issue
+			printf "\nDiscarding... Issue was not closed!"
+			_load_indicator
+			INITIAL_QUERY="$printed_query"
+			fzf_issue_function
 		fi
 		;;
 	ctrl-n)
 		gh issue create --repo "$OWNER_REPO_NAME"
-		_load_indicator "Restarting ..." 0.25
-		_fzf_issue 0s
+		_load_indicator
+		INITIAL_QUERY="$printed_query"
+		fzf_issue_function 0s
 		;;
 	ctrl-x)
-		gh issue comment "$ISSUE_NUMBER" --repo "$OWNER_REPO_NAME"
-		_load_indicator "Restarting ..." 0.25
-		_fzf_issue 0s
+		gh issue comment "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME"
+		_load_indicator
+		INITIAL_QUERY="$printed_query"
+		fzf_issue_function 0s
 		;;
 	enter)
-		_fzf_issue_comment
+		INITIAL_QUERY="$printed_query"
+		if [ -z "$number_comments" ]; then
+			# adding U+00a0 (non-breaking space) for isues with zero comments and commentable
+			# without it an issue with 0 comments and >1 reaction would trick the if check
+			# sometimes the "age" column can only be 2 words instead of 3, e.g. "just now", that is why $6 and $7
+			_load_indicator $'No comments on this issue\nRestarting ...'
+			fzf_issue_function 0s
+		else
+			fzf_issue_comment_function
+		fi
 		;;
-	pgup)
+	shift-up)
 		INITIAL_QUERY=""
-		_fzf_search
+		fzf_search_function
 		;;
-	pgdn)
-		_fzf_pr
+	shift-down)
+		INITIAL_QUERY=""
+		fzf_pr_function
 		;;
 	esac
 }
 
-HELP_ISSUE_COMMENT_SECTION=$(
+help_issue_comment_function() {
 	cat <<EOF
 ${WHITE_BOLD}Symbols${COLOR_RESET}
   📣  Total number of emojis (green reactable; yellow reacted; red locked)
@@ -220,23 +306,22 @@ ${WHITE_BOLD}Hotkeys${COLOR_RESET}
   ${GREEN_NORMAL}shift+tab${COLOR_RESET}  Change preview window size
   ${GREEN_NORMAL}ctrl+b   ${COLOR_RESET}  Browser
   ${GREEN_NORMAL}ctrl+n   ${COLOR_RESET}  New Issue
-  ${GREEN_NORMAL}ctrl+t   ${COLOR_RESET}  React with an Emoji
-  ${GREEN_NORMAL}ctrl+u   ${COLOR_RESET}  Undo the Emoji reaction
+  ${GREEN_NORMAL}ctrl+t   ${COLOR_RESET}  React with $(_emoji_from_name "$REACTION_EMOJI") emoji
+  ${GREEN_NORMAL}ctrl+u   ${COLOR_RESET}  Undo the $(_emoji_from_name "$REACTION_EMOJI") emoji reaction
+  ${GREEN_NORMAL}ctrl+w/s ${COLOR_RESET}  Scroll the preview up/down
   ${GREEN_NORMAL}ctrl+x   ${COLOR_RESET}  Write a comment
   ${GREEN_NORMAL}ctrl+z   ${COLOR_RESET}  Delete the comment after confirmation
   ${GREEN_NORMAL}esc      ${COLOR_RESET}  Return to Issue list
 EOF
-)
+}
 
-_fzf_issue_comment() {
-	if ! sed 1d <<<"${ISSUE_OUTPUT}" | awk '{print $6,$7}' | grep -Eqw '[0-9]+'; then
-		# adding U+00a0 (non-breaking space) for isues with zero comments and commentable
-		# without it an issue with 0 comments and >1 reaction would trick the if check
-		# sometimes the "age" column can only be 2 words instead of 3, e.g. "just now", that is why $6 and $7
-		_load_indicator $'No comments on this issue\nRestarting ...' 0.45
-		_fzf_issue
-	fi
+# Get the name and date of the commenter, convert the emojis to real emojis, add the total number next to it. Highlight if the viewer has used it.
+# Get the last 4 emoji reactor names for each group,
+# based on the length of the array of reactor names, either print or slice 1 and add a ", ..." as an indicator of more than three
+# End the list with the commenter's actual message.
+GH_COMMENTS_PREVIEW=$'gh api graphql --raw-field id={1} --raw-field query=\'query($id: ID! ){node(id: $id) {... on Comment { author{login} body createdAt viewerDidAuthor} ... on Reactable { reactionGroups { content viewerHasReacted reactors(last: 4) { nodes {... on User { login }} totalCount }}}}}\' --template \'{{- $prefix := .data.node -}}{{- $author := "[DELETED_USER]" -}}{{- if $prefix.author -}}{{- $author = $prefix.author.login -}}{{- end -}}{{- $authorColor := "cyan+hb" -}}{{- if $prefix.viewerDidAuthor -}}{{- $authorColor = "yellow+bh" -}}{{- end -}}{{- tablerow  ("◥■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■◤"| color "gray+d") -}}{{- tablerender -}}{{- tablerow ($author | color $authorColor) (timeago $prefix.createdAt | color "white+bh") -}}{{- tablerender -}}{{- range $prefix.reactionGroups -}}{{ $emoji := .content }}{{ if eq .content "CONFUSED" }}{{ $emoji = "😕" }}{{ else if eq .content "EYES" }}{{ $emoji = "👀" }}{{ else if eq .content "HEART" }}{{ $emoji = "💖" }}{{ else if eq .content "HOORAY" }}{{ $emoji = "🎉" }}{{ else if eq .content "LAUGH" }}{{ $emoji = "😄" }}{{ else if eq .content "THUMBS_DOWN" }}{{ $emoji = "👎" }}{{ else if eq .content "THUMBS_UP" }}{{ $emoji = "👍" }}{{ else if eq .content "ROCKET" }}{{ $emoji = "🚀" }}{{ end }}{{ if gt .reactors.totalCount 0.0 }}{{ $emojiGiver := pluck "login" .reactors.nodes | join ", " | color "green+d" }}{{ if gt (pluck "login" .reactors.nodes | len ) 3 }}{{- /* NOTE: number of names limited */ -}}{{ $emojiGiver = slice (pluck "login" .reactors.nodes) 1 | join ", " | printf "%s, ..." | color "green+d" }}{{end}}{{- $emojiTotal := .reactors.totalCount | color "green+bd" -}}{{- if .viewerHasReacted -}}{{- $emojiTotal = .reactors.totalCount | color "yellow+bh" -}}{{- end -}}{{- tablerow (printf "%s %s" $emojiTotal $emoji) $emojiGiver -}}{{- tablerender -}}{{- end -}}{{- end }}{{- tablerow  ("‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥"| color "gray+d") -}}{{- tablerender -}}{{- tablerow "" -}}{{- tablerender -}}{{- $prefix.body -}}\''
 
+fzf_issue_comment_function() {
 	GH_ISSUE_COMMENTS_COMMAND=$'gh api graphql --paginate --raw-field query=\'query ($owner: String!, $name: String!, $number: Int!, $endCursor: String) { repository(owner: $owner, name: $name) { issue(number: $number) { author { login } createdAt labels(first:10) { nodes { name } } number state title comments(first: 100, after: $endCursor) { totalCount nodes { author { login } body createdAt databaseId id reactions { totalCount viewerHasReacted } viewerCanReact viewerDidAuthor } pageInfo { endCursor hasNextPage }}}}}\' --template \'
 		{{- $prefix := .data.repository.issue -}}
 		{{- $stateIssueCommentColor := "green" -}}
@@ -244,7 +329,7 @@ _fzf_issue_comment() {
 			{{- tablerow "NODE_ID_HIDDEN" "DATABASE_ID_HIDDEN" ($prefix.title | color "white+bh") -}}{{- tablerender -}}
 		{{- $issueAuthor := "[DELETED_USER]" -}}
 			{{- if $prefix.author -}}{{- $issueAuthor = $prefix.author.login -}}{{- end -}}
-			{{- tablerow "NODE_ID_HIDDEN" "DATABASE_ID_HIDDEN" (printf "%s ◉ #%.0f" $prefix.state $prefix.number | color $stateIssueCommentColor) ($issueAuthor | color "cyan+hb") (printf "│ %s ∙ %.0f Comments │" (timeago $prefix.createdAt) $prefix.comments.totalCount | color "gray+h") ("? - Toggle Help" | color "blue") -}}{{- tablerender -}}
+			{{- tablerow "NODE_ID_HIDDEN" "DATABASE_ID_HIDDEN" (printf "%s ◉ #%.0f" $prefix.state $prefix.number | color $stateIssueCommentColor) ($issueAuthor | color "cyan+hb") (printf "│ %s ∙ %.0f Comments │" (timeago $prefix.createdAt) $prefix.comments.totalCount | color "gray+h") ("? Help · esc Quit" | color "blue") -}}{{- tablerender -}}
 			{{- if $prefix.labels.nodes -}}{{- tablerow "NODE_ID_HIDDEN" "DATABASE_ID_HIDDEN" ("Labels:" | color "white+b") (pluck "name" $prefix.labels.nodes | join ", " | printf "[ %s ]" | color "white") -}}{{- else -}}{{- tablerow "" -}}{{- end -}}{{- tablerender -}}
 			{{- tablerow "NODE_ID_HIDDEN" "DATABASE_ID_HIDDEN" ("———————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————" | color "gray+d") -}}{{- tablerender -}}
 			{{- tablerow "NODE_ID_HIDDEN" "DATABASE_ID_HIDDEN" "" -}}{{- tablerender -}}
@@ -266,58 +351,71 @@ _fzf_issue_comment() {
 			{{- tablerow .id .databaseId ($author | color $authorColor) (timeago .createdAt) ($emojiCount | color $emojiColor) .body -}}
 		{{- end -}}\''
 
-	ISSUE_COMMENT_OUTPUT=$(FZF_DEFAULT_COMMAND="$GH_ISSUE_COMMENTS_COMMAND --cache ${1:-$CACHE_TIME} --raw-field owner=${OWNER_REPO_NAME%/*} --raw-field name=${OWNER_REPO_NAME#*/} --field number=$ISSUE_NUMBER" \
+	OUTPUT_SELECTION=$(FZF_DEFAULT_COMMAND="$GH_ISSUE_COMMENTS_COMMAND --cache ${1:-$CACHE_TIME} --raw-field owner=${OWNER_REPO_NAME%/*} --raw-field name=${OWNER_REPO_NAME#*/} --field number=$TICKET_NUMBER" \
 		_fzf_basic_options --header-lines 6 --with-nth 3.. \
-		--prompt $'\e[1;94m'"Issue 💬 [$OWNER_REPO_NAME] > " \
+		--query "$INITIAL_COMMENT_QUERY" --prompt $'\e[1;94m'"Issue 💬 [$OWNER_REPO_NAME] > " \
 		--preview-window "+5:~5" --preview "$GH_COMMENTS_PREVIEW | $BAT_OR_CAT" \
-		--bind "?:toggle-preview+change-preview:echo -e '$HELP_ISSUE_COMMENT_SECTION'" \
+		--bind "?:toggle-preview+change-preview:echo '$(help_issue_comment_function)'" \
 		--bind "tab:toggle-preview+change-preview:$GH_COMMENTS_PREVIEW | $BAT_OR_CAT" \
-		--bind "ctrl-b:execute-silent(open https://github.com/$OWNER_REPO_NAME/issues/$ISSUE_NUMBER#issuecomment-{2})" \
-		--bind "ctrl-t:execute-silent($GH_ADD_REACTION --raw-field id={1} --raw-field emoji=$REACTION_EMOJI)+reload-sync:$GH_ISSUE_COMMENTS_COMMAND --raw-field owner=${OWNER_REPO_NAME%/*} --raw-field name=${OWNER_REPO_NAME#*/} --field number=$ISSUE_NUMBER || true" \
-		--bind "ctrl-u:execute-silent($GH_REMOVE_REACTION --raw-field id={1} --raw-field emoji=$REACTION_EMOJI)+reload-sync:$GH_ISSUE_COMMENTS_COMMAND --raw-field owner=${OWNER_REPO_NAME%/*} --raw-field name=${OWNER_REPO_NAME#*/} --field number=$ISSUE_NUMBER || true" \
+		--bind "ctrl-b:execute-silent(open https://github.com/$OWNER_REPO_NAME/issues/$TICKET_NUMBER#issuecomment-{2})" \
+		--bind "ctrl-t:execute-silent($GH_ADD_REACTION --raw-field id={1} --raw-field emoji=$REACTION_EMOJI)+reload-sync:$GH_ISSUE_COMMENTS_COMMAND --raw-field owner=${OWNER_REPO_NAME%/*} --raw-field name=${OWNER_REPO_NAME#*/} --field number=$TICKET_NUMBER || true" \
+		--bind "ctrl-u:execute-silent($GH_REMOVE_REACTION --raw-field id={1} --raw-field emoji=$REACTION_EMOJI)+reload-sync:$GH_ISSUE_COMMENTS_COMMAND --raw-field owner=${OWNER_REPO_NAME%/*} --raw-field name=${OWNER_REPO_NAME#*/} --field number=$TICKET_NUMBER || true" \
 		--expect "ctrl-n,ctrl-x,ctrl-z,esc") || true
 
-	case $(sed 1q <<<"${ISSUE_COMMENT_OUTPUT}") in
+	printed_query="$(sed 1q <<<"$OUTPUT_SELECTION")"
+	expected_key="$(sed '1d;3d' <<<"$OUTPUT_SELECTION")"
+	output_textline="$(sed '1d;2d' <<<"$OUTPUT_SELECTION" | awk '{$1=""; print $0}')"
+	# reset the variable
+	OUTPUT_SELECTION=""
+	case "$expected_key" in
 	ctrl-n)
 		gh issue create --repo "$OWNER_REPO_NAME"
-		_load_indicator "Restarting ..." 0.25
-		_fzf_issue 0s
+		_load_indicator
+		INITIAL_QUERY="$printed_query"
+		fzf_issue_function 0s
 		;;
 	ctrl-x)
-		gh issue comment "$ISSUE_NUMBER" --repo "$OWNER_REPO_NAME"
-		_load_indicator "Restarting ..." 0.25
-		_fzf_issue_comment 0s
+		gh issue comment "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME"
+		_load_indicator
+		INITIAL_COMMENT_QUERY="$printed_query"
+		fzf_issue_comment_function 0s
 		;;
 	ctrl-z)
-		printf "\n%s\n\nCONFIRM DELETION (Y/n) " "$(sed 1d <<<"${ISSUE_COMMENT_OUTPUT}" | awk '{$1=$2=""; print $0}')"
+		printf "\n%s\n\nCONFIRM DELETION (y/n) " "$output_textline"
 		stty raw -echo
 		CONFIRM=$(dd bs=1 count=1 2>/dev/null)
 		stty sane
 		if [[ "$CONFIRM" = "y" ]]; then
-			gh api graphql --silent --raw-field id="$(sed 1d <<<"${ISSUE_COMMENT_OUTPUT}" | awk '{print $1}')" --raw-field query=$'mutation($id: ID!) { deleteIssueComment(input: {id: $id}) { clientMutationId }}' 2>/dev/null && printf "\n🟢 Success.... comment deleted\n" || printf "\n🛑 Missing permissions to delete this comment. !!!\n"
-			_load_indicator "Restarting ..." 0.25
-			_fzf_issue 0s
+			gh api graphql --silent --raw-field id="$(sed 1d <<<"${OUTPUT_SELECTION}" | awk '{print $1}')" --raw-field query=$'mutation($id: ID!) { deleteIssueComment(input: {id: $id}) { clientMutationId }}' 2>/dev/null && printf "\n🟢 Success.... comment deleted\n" || printf "\n🛑 Missing permissions to delete this comment!\n"
+			_load_indicator
+			INITIAL_QUERY="$printed_query"
+			fzf_issue_function 0s
 		else
-			printf "\nDiscarding... comment was not deleted !!!"
-			_load_indicator "Restarting ..." 0.25
-			_fzf_issue_comment
+			printf "\nDiscarding... comment was not deleted!"
+			_load_indicator
+			INITIAL_COMMENT_QUERY="$printed_query"
+			fzf_issue_comment_function
 		fi
 		;;
-	esc) _fzf_issue ;;
+	esc)
+		INITIAL_COMMENT_QUERY=""
+		fzf_issue_function
+		;;
 	esac
 }
 
 ###################################### PULL REQUEST (PR)
 
-HELP_PR_SECTION=$(
+help_pr_function() {
 	cat <<EOF
 ${WHITE_BOLD}Usage${COLOR_RESET}
-  gh look pr [Flags] [Search term]
+  gh look [ p | pr ] [Flags] [Search term]
 
 ${WHITE_BOLD}Flags${COLOR_RESET}
   ${GREEN_NORMAL}<none>${COLOR_RESET}  List Pull Requests from current directory
   ${GREEN_NORMAL}-c    ${COLOR_RESET}  Cache the response, for example "30s", "15m", "1h" (default: 20s)
-  ${GREEN_NORMAL}-e    ${COLOR_RESET}  Emoji to make a reaction (default: THUMBS_UP 👍 )
+  ${GREEN_NORMAL}-e    ${COLOR_RESET}  Emoji to make a reaction (default: 👍 )
+  ${GREEN_NORMAL}-h    ${COLOR_RESET}  Help
   ${GREEN_NORMAL}-o    ${COLOR_RESET}  sorting order of Pull Requests (default: created-desc)
   ${GREEN_NORMAL}-r    ${COLOR_RESET}  Specify a repo (form: OWNER/REPO)
   ${GREEN_NORMAL}-w    ${COLOR_RESET}  Display the preview window upon start (default: hidden)
@@ -331,7 +429,7 @@ ${WHITE_BOLD}Symbols${COLOR_RESET}
 ${WHITE_BOLD}Hotkeys${COLOR_RESET}
   ${GREEN_NORMAL}?         ${COLOR_RESET}  Toggle help
   ${GREEN_NORMAL}enter     ${COLOR_RESET}  See comments
-  ${GREEN_NORMAL}type      ${COLOR_RESET}  Toggle preview
+  ${GREEN_NORMAL}tab       ${COLOR_RESET}  Toggle preview
   ${GREEN_NORMAL}shift+tab ${COLOR_RESET}  Change preview window size
   ${GREEN_NORMAL}ctrl+a    ${COLOR_RESET}  ALL Pull Requests
   ${GREEN_NORMAL}ctrl+b    ${COLOR_RESET}  Browser
@@ -340,24 +438,27 @@ ${WHITE_BOLD}Hotkeys${COLOR_RESET}
   ${GREEN_NORMAL}ctrl+f    ${COLOR_RESET}  Fuzzy search
   ${GREEN_NORMAL}ctrl+g    ${COLOR_RESET}  Merge a Pull Request
   ${GREEN_NORMAL}ctrl+o    ${COLOR_RESET}  OPEN Pull Requests only
+  ${GREEN_NORMAL}ctrl+p    ${COLOR_RESET}  Put "involves:@me" into the search
   ${GREEN_NORMAL}ctrl+r    ${COLOR_RESET}  Reload
-  ${GREEN_NORMAL}ctrl+t    ${COLOR_RESET}  React with an Emoji
-  ${GREEN_NORMAL}ctrl+u    ${COLOR_RESET}  Undo the Emoji reaction
+  ${GREEN_NORMAL}ctrl+t    ${COLOR_RESET}  React with $(_emoji_from_name "$REACTION_EMOJI") emoji
+  ${GREEN_NORMAL}ctrl+u    ${COLOR_RESET}  Undo the $(_emoji_from_name "$REACTION_EMOJI") emoji reaction
+  ${GREEN_NORMAL}ctrl+w/s  ${COLOR_RESET}  Scroll the preview up/down
   ${GREEN_NORMAL}ctrl+x    ${COLOR_RESET}  Write a comment
   ${GREEN_NORMAL}ctrl+y    ${COLOR_RESET}  Checkout
-  ${GREEN_NORMAL}pgup(Fn+↑)${COLOR_RESET}  Switch to Issues
+  ${GREEN_NORMAL}shift+up  ${COLOR_RESET}  Switch to Issues
+  ${GREEN_NORMAL}shift+down${COLOR_RESET}  Switch to Workflow Runs
   ${GREEN_NORMAL}esc       ${COLOR_RESET}  Exit
 EOF
-)
+}
 
-_fzf_pr() {
+fzf_pr_function() {
 	GH_PR_PREVIEW=$'gh api graphql --paginate --raw-field id={1} --raw-field query=\'query($id: ID!, $endCursor: String){node(id: $id) {... on PullRequest { author { login } body createdAt comments(first: 100) { totalCount nodes { author { login } body createdAt viewerDidAuthor reactionGroups { content reactors(last: 4) { totalCount nodes { ... on User { login }}}}}} timelineItems(itemTypes: [CLOSED_EVENT, MERGED_EVENT, ISSUE_COMMENT], first: 100, after: $endCursor) { nodes { ... on ClosedEvent { actor { login } createdAt stateReason } ... on IssueComment { author { login } body createdAt viewerDidAuthor reactionGroups { content reactors(last: 4) { totalCount nodes { ... on User { login }}}} reactionGroups { content viewerHasReacted reactors(last: 4) { nodes { ... on User { login }} totalCount }}} ... on MergedEvent { actor { login } createdAt mergeRef { repository { name } name } commit { abbreviatedOid }}} pageInfo { hasNextPage endCursor }} labels(first:10) { nodes { name } } number reactionGroups { content viewerHasReacted reactors(last: 4) { nodes { ... on User { login }} totalCount }} state title viewerDidAuthor }}}\' --template \'{{- $prefix := .data.node -}}{{- $statePRColor := "green+b" -}}{{- if eq $prefix.state "CLOSED" -}}{{- $statePRColor = "red+b" -}}{{- else if eq $prefix.state "MERGED" -}}{{- $statePRColor = "magenta+b" -}}{{- end -}}{{- $issueAuthor := "[DELETED_USER]" -}}{{- if $prefix.author -}}{{- $issueAuthor = $prefix.author.login -}}{{- end -}}{{- $authorColor := "cyan+hb" -}}{{- if $prefix.viewerDidAuthor -}}{{- $authorColor = "yellow+bh" -}}{{- end -}}{{- tablerow ($prefix.title | color "white+bh") -}}{{- tablerender -}}{{- tablerow (printf "%s  #%.0f" $prefix.state $prefix.number | color $statePRColor) ($issueAuthor | color $authorColor) (printf "│ %s ∙ %.0f Comments │" (timeago $prefix.createdAt) $prefix.comments.totalCount | color "gray+h") -}}{{- tablerender -}}{{- if $prefix.labels.nodes -}}{{- tablerow ("Labels:" | color "white+b") (pluck "name" $prefix.labels.nodes | join ", " | printf "[ %s ]" | color "white") -}}{{- tablerender -}}{{- end -}}{{- range $prefix.reactionGroups -}}{{ $emoji := .content }}{{ if eq .content "CONFUSED" }}{{ $emoji = "😕" }}{{ else if eq .content "EYES" }}{{ $emoji = "👀" }}{{ else if eq .content "HEART" }}{{ $emoji = "💖" }}{{ else if eq .content "HOORAY" }}{{ $emoji = "🎉" }}{{ else if eq .content "LAUGH" }}{{ $emoji = "😄" }}{{ else if eq .content "THUMBS_DOWN" }}{{ $emoji = "👎" }}{{ else if eq .content "THUMBS_UP" }}{{ $emoji = "👍" }}{{ else if eq .content "ROCKET" }}{{ $emoji = "🚀" }}{{ end }}{{ if gt .reactors.totalCount 0.0 }}{{ $emojiGiver := pluck "login" .reactors.nodes | join ", " | color "green+d" }}{{ if gt (pluck "login" .reactors.nodes | len ) 3 }}{{- /* NOTE: number of names limited */ -}}{{ $emojiGiver = slice (pluck "login" .reactors.nodes) 1 | join ", " | printf "%s, ..." | color "green+d" }}{{end}}{{- $emojiTotal := .reactors.totalCount | color "green+bd" -}}{{- if .viewerHasReacted -}}{{- $emojiTotal = .reactors.totalCount | color "yellow+bh" -}}{{- end -}}{{- tablerow (printf "%s %s" $emojiTotal $emoji) $emojiGiver -}}{{- tablerender -}}{{- end -}}{{- end }}{{- tablerow  ("——————————————————————————————————————————————————————————"| color "gray+d") -}}{{- tablerender -}}{{- tablerow "" -}}{{- tablerender -}}{{- $bodyText := $prefix.body }}{{ if eq ($bodyText | len) 0 -}}{{- $bodyText = " No description provided. " | color "white+i" -}}{{- end -}}{{- $bodyText -}}{{- tablerow "" -}}{{- tablerender -}}{{- tablerow "" -}}{{- tablerender -}}{{- tablerow "" -}}{{- tablerender -}}{{- range $prefix.timelineItems.nodes -}}{{- $actorTimeline := "[DELETED_USER]" -}}{{- if .actor -}}{{- $actorTimeline = .actor.login -}}{{- end -}}{{- $authorTimelineColor := "cyan+hb" -}}{{- if .viewerDidAuthor -}}{{- $authorTimelineColor = "yellow+bh" -}}{{- end -}}{{- if .mergeRef -}}{{- $stateMergedColor := "93+b" -}}{{- tablerow "" -}}{{- tablerender -}}{{- tablerow  ("◥■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■◤"| color $stateMergedColor) -}}{{- tablerender -}}{{- tablerow (printf "%s merged %s into %s %s" ($actorTimeline | color $authorTimelineColor) (.commit.abbreviatedOid | color $stateMergedColor) (printf "%s:%s" .mergeRef.repository.name .mergeRef.name) (timeago .createdAt | color "white+bh")) -}}{{- tablerender -}}{{- tablerow  ("◢■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■◣"| color $stateMergedColor) -}}{{- tablerender -}}{{- tablerow "" -}}{{- tablerender -}}{{- else if eq .stateReason "COMPLETED" -}}{{- $stateClosedColor := "red+b" -}}{{- tablerow "" -}}{{- tablerender -}}{{- tablerow  ("◥■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■◤"| color $stateClosedColor) -}}{{- tablerender -}}{{- tablerow (printf "%s closed this %s" ($actorTimeline | color $authorTimelineColor) (timeago .createdAt | color "white+bh")) -}}{{- tablerender -}}{{- tablerow  ("◢■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■◣"| color $stateClosedColor) -}}{{- tablerender -}}{{- tablerow "" -}}{{- tablerender -}}{{- else -}}{{- $authorTimeline := "[DELETED_USER]" -}}{{- if .author -}}{{- $authorTimeline = .author.login -}}{{- end -}}{{- tablerow "" -}}{{- tablerender -}}{{- tablerow  ("◥■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■◤"| color "gray+d") -}}{{- tablerender -}}{{- tablerow ($authorTimeline | color $authorTimelineColor) ( timeago .createdAt | color "white+bh") -}}{{- tablerender -}}{{- range .reactionGroups -}}{{ $emojiInComment := .content }}{{ if eq .content "CONFUSED" }}{{ $emojiInComment = "😕" }}{{ else if eq .content "EYES" }}{{ $emojiInComment = "👀" }}{{ else if eq .content "HEART" }}{{ $emojiInComment = "💖" }}{{ else if eq .content "HOORAY" }}{{ $emojiInComment = "🎉" }}{{ else if eq .content "LAUGH" }}{{ $emojiInComment = "😄" }}{{ else if eq .content "THUMBS_DOWN" }}{{ $emojiInComment = "👎" }}{{ else if eq .content "THUMBS_UP" }}{{ $emojiInComment = "👍" }}{{ else if eq .content "ROCKET" }}{{ $emojiInComment = "🚀" }}{{ end }}{{ if gt .reactors.totalCount 0.0 }}{{ $emojiInCommentGiver := pluck "login" .reactors.nodes | join ", " | color "green+d" }}{{ if gt (pluck "login" .reactors.nodes | len ) 3 }}{{- /* NOTE: number of names limited */ -}}{{ $emojiInCommentGiver = slice (pluck "login" .reactors.nodes) 1 | join ", " | printf "%s, ..." | color "green+d" }}{{end}}{{- $emojiInCommentTotal := .reactors.totalCount | color "green+bd" -}}{{- if .viewerHasReacted -}}{{- $emojiInCommentTotal = .reactors.totalCount | color "yellow+bh" -}}{{- end -}}{{- tablerow (printf "%s %s" $emojiInCommentTotal $emojiInComment) $emojiInCommentGiver -}}{{- tablerender -}}{{- end -}}{{- end -}}{{- tablerow  ("‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥"| color "gray+d") -}}{{- tablerender -}}{{- tablerow "" -}}{{- tablerender -}}{{- .body -}}{{- tablerow "" -}}{{- tablerender -}}{{- tablerow "" -}}{{- tablerender -}}{{- end -}}{{- end -}}\''
 
 	# fzf allows hiding columns "--with-nth 2...", headers are also affected, so NODE_ID_HIDDEN is included there
 	GH_PR_COMMAND=$'gh api graphql --raw-field query=\'query($filter: String!) {search(query: $filter, type: ISSUE, first: 35) {issueCount nodes { ... on PullRequest { additions author { login } comments {totalCount} deletions id number updatedAt reactions { totalCount viewerHasReacted } state title viewerCanReact viewerDidAuthor }}}}\' --template \'
 		{{- $limitCount := .data.search.issueCount -}}
 			{{- if gt .data.search.issueCount 35.0 -}}{{- $limitCount = 35.0 -}}{{- end -}}
-		{{- tablerow "NODE_ID_HIDDEN" (printf "%.0f of ∑ %.0f" $limitCount .data.search.issueCount | color "blue+b") ("|" | color "white+d") ("? - Toggle Help" | color "blue") -}}{{- tablerender -}}
+		{{- tablerow "NODE_ID_HIDDEN" (printf "%.0f of ∑ %.0f" $limitCount .data.search.issueCount | color "blue+b") ("|" | color "white+d") ("? Help · esc Quit" | color "blue") -}}{{- tablerender -}}
 		{{- tablerow "" -}}{{- tablerender -}}
 		{{- $headerColor := "blue+b" -}}
 			{{- tablerow "NODE_ID_HIDDEN" ("PR" | color $headerColor) ("AUTHOR" | color $headerColor) ("LAST UPDATE" | color $headerColor) "💬" "📣" ("+" | color "green+bd") ("-" | color "red+bd") ("TITLE" | color $headerColor) -}}
@@ -387,51 +488,73 @@ _fzf_pr() {
 
 	INITIAL_PR_PROMPT=$(grep -q A <"$SCRATCH_FILE" && printf "Pull Requests  [%s] > " "$OWNER_REPO_NAME" || printf "\e[1;92mOPEN Pull Requests  [%s] > " "$OWNER_REPO_NAME")
 
-	PR_OUTPUT=$(FZF_DEFAULT_COMMAND="(grep -q A <$SCRATCH_FILE && $GH_PR_COMMAND --cache ${1:-$CACHE_TIME} --raw-field filter=\"$SORTING_ORDER type:pr repo:$OWNER_REPO_NAME $INITIAL_QUERY \" || $GH_PR_COMMAND --cache ${1:-$CACHE_TIME} --raw-field filter=\"$SORTING_ORDER type:pr repo:$OWNER_REPO_NAME state:open $INITIAL_QUERY \") || true" \
+	OUTPUT_SELECTION=$(FZF_DEFAULT_COMMAND="(grep -q A <$SCRATCH_FILE && $GH_PR_COMMAND --cache ${1:-$CACHE_TIME} --raw-field filter=\"$SORTING_ORDER type:pr repo:$OWNER_REPO_NAME $INITIAL_QUERY \" || $GH_PR_COMMAND --cache ${1:-$CACHE_TIME} --raw-field filter=\"$SORTING_ORDER type:pr repo:$OWNER_REPO_NAME state:open $INITIAL_QUERY \") || true" \
 		_fzf_basic_options --disabled --header-lines 3 --with-nth 2.. \
 		--prompt "$INITIAL_PR_PROMPT" \
 		--query "$INITIAL_QUERY" --preview "sleep 0.35; $GH_PR_PREVIEW | $BAT_OR_CAT" \
 		--bind "change:first+reload-sync:sleep 0.25; (grep -q A <$SCRATCH_FILE && $GH_PR_COMMAND --cache $CACHE_TIME --raw-field filter=\"$SORTING_ORDER type:pr repo:$OWNER_REPO_NAME \"{q} || $GH_PR_COMMAND --cache $CACHE_TIME --raw-field filter=\"$SORTING_ORDER type:pr repo:$OWNER_REPO_NAME state:open \"{q}) || true" \
-		--bind "?:toggle-preview+change-preview:echo -e '$HELP_PR_SECTION'" \
+		--bind "?:toggle-preview+change-preview:echo '$(help_pr_function)'" \
 		--bind "tab:toggle-preview+change-preview:sleep 0.35; $GH_PR_PREVIEW | $BAT_OR_CAT" \
 		--bind "ctrl-a:rebind(change)+change-prompt(Pull Requests  [$OWNER_REPO_NAME] > )+disable-search+execute-silent(echo A >$SCRATCH_FILE)+reload-sync:$GH_PR_COMMAND --cache $CACHE_TIME --raw-field filter=\"$SORTING_ORDER type:pr repo:$OWNER_REPO_NAME \"{q} || true" \
 		--bind "ctrl-b:execute-silent(gh pr view {2} --web --repo $OWNER_REPO_NAME)" \
 		--bind $'ctrl-f:unbind(change)+enable-search+clear-query+change-prompt(\e[1;93mFUZZY SEARCH'" [$OWNER_REPO_NAME] > )" \
 		--bind "ctrl-d:toggle-preview+change-preview(gh pr diff {2} --repo $OWNER_REPO_NAME"$' | if type -p delta >/dev/null; then delta --width ${FZF_PREVIEW_COLUMNS:-$COLUMNS}; else cat; fi)' \
 		--bind $'ctrl-o:rebind(change)+change-prompt(\e[1;92mOPEN Pull Requests '" [$OWNER_REPO_NAME] > )+disable-search+execute-silent(echo B >$SCRATCH_FILE)+reload-sync:$GH_PR_COMMAND --cache $CACHE_TIME --raw-field filter=\"$SORTING_ORDER type:pr repo:$OWNER_REPO_NAME state:open \"{q} || true" \
+		--bind "ctrl-p:put(involves:@me)" \
 		--bind "ctrl-r:reload-sync:(grep -q A <$SCRATCH_FILE && $GH_PR_COMMAND --raw-field filter=\"$SORTING_ORDER type:pr repo:$OWNER_REPO_NAME \"{q} || $GH_PR_COMMAND --raw-field filter=\"$SORTING_ORDER type:pr repo:$OWNER_REPO_NAME state:open \"{q}) || true" \
 		--bind "ctrl-t:execute-silent($GH_ADD_REACTION --raw-field id={1} --raw-field emoji=$REACTION_EMOJI)+reload-sync:(grep -q A <$SCRATCH_FILE && $GH_PR_COMMAND --raw-field filter=\"$SORTING_ORDER type:pr repo:$OWNER_REPO_NAME \"{q} || $GH_PR_COMMAND --raw-field filter=\"$SORTING_ORDER type:pr repo:$OWNER_REPO_NAME state:open \"{q}) || true" \
 		--bind "ctrl-u:execute-silent($GH_REMOVE_REACTION --raw-field id={1} --raw-field emoji=$REACTION_EMOJI)+reload-sync:(grep -q A <$SCRATCH_FILE && $GH_PR_COMMAND --raw-field filter=\"$SORTING_ORDER type:pr repo:$OWNER_REPO_NAME \"{q} || $GH_PR_COMMAND --raw-field filter=\"$SORTING_ORDER type:pr repo:$OWNER_REPO_NAME state:open \"{q}) || true" \
-		--expect "ctrl-e,ctrl-g,ctrl-x,ctrl-y,enter,pgup") || true
+		--expect "ctrl-e,ctrl-g,ctrl-x,ctrl-y,enter,shift-up,shift-down") || true
 
-	PR_NUMBER=$(sed 1d <<<"${PR_OUTPUT}" | awk '{print $2}' | tr -d "#")
-	case $(sed 1q <<<"${PR_OUTPUT}") in
+	printed_query="$(sed 1q <<<"$OUTPUT_SELECTION")"
+	expected_key="$(sed '1d;3d' <<<"$OUTPUT_SELECTION")"
+	TICKET_NUMBER="$(sed '1d;2d' <<<"$OUTPUT_SELECTION" | awk '{print $2}' | tr -d "#")"
+	output_textline="$(sed '1d;2d' <<<"$OUTPUT_SELECTION" | awk '{$1=""; print $0}')"
+	number_comments="$(sed '1d;2d' <<<"$OUTPUT_SELECTION" | awk '{print $6,$7}' | grep -Eo '[0-9]+' || true)"
+	# reset the variable
+	OUTPUT_SELECTION=""
+	case "$expected_key" in
 	ctrl-e)
-		gh pr edit "$PR_NUMBER" --repo "$OWNER_REPO_NAME"
-		_load_indicator "Restarting ..." 0.25
-		_fzf_pr 0s
+		gh pr edit "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME"
+		_load_indicator
+		INITIAL_QUERY="$printed_query"
+		fzf_pr_function 0s
 		;;
 	ctrl-g)
-		gh pr merge "$PR_NUMBER" --repo "$OWNER_REPO_NAME"
+		gh pr merge "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME"
 		exit 0
 		;;
 	ctrl-x)
-		gh pr comment "$PR_NUMBER" --repo "$OWNER_REPO_NAME"
-		_load_indicator "Restarting ..." 0.25
-		_fzf_pr 0s
+		gh pr comment "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME"
+		_load_indicator
+		INITIAL_QUERY="$printed_query"
+		fzf_pr_function 0s
 		;;
 	ctrl-y)
-		gh pr checkout "$PR_NUMBER" --repo "$OWNER_REPO_NAME"
+		gh pr checkout "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME"
 		exit 0
 		;;
-	enter) _fzf_pr_comment ;;
-	pgup)
-		_fzf_issue
+	enter)
+		INITIAL_QUERY="$printed_query"
+		if [ -z "$number_comments" ]; then
+			_load_indicator $'No comments on this Pull Request\nRestarting ...'
+			fzf_pr_function
+		else
+			fzf_pr_comment_function
+		fi
+		;;
+	shift-up)
+		INITIAL_QUERY=""
+		fzf_issue_function
+		;;
+	shift-down)
+		INITIAL_QUERY=""
+		fzf_workflow_run_function
 		;;
 	esac
 }
 
-HELP_PR_COMMENT_SECTION=$(
+help_pr_comment_function() {
 	cat <<EOF
 ${WHITE_BOLD}Symbols${COLOR_RESET}
   📣  Total number of emojis (green reactable; yellow reacted; red locked)
@@ -442,19 +565,15 @@ ${WHITE_BOLD}Hotkeys${COLOR_RESET}
   ${GREEN_NORMAL}shift+tab${COLOR_RESET}  Change preview window size
   ${GREEN_NORMAL}ctrl+b   ${COLOR_RESET}  Browser
   ${GREEN_NORMAL}ctrl+d   ${COLOR_RESET}  Toggle diff
-  ${GREEN_NORMAL}ctrl+t   ${COLOR_RESET}  React with an Emoji
-  ${GREEN_NORMAL}ctrl+u   ${COLOR_RESET}  Undo the Emoji reaction
+  ${GREEN_NORMAL}ctrl+t   ${COLOR_RESET}  React with $(_emoji_from_name "$REACTION_EMOJI") emoji
+  ${GREEN_NORMAL}ctrl+u   ${COLOR_RESET}  Undo the $(_emoji_from_name "$REACTION_EMOJI") emoji reaction
+  ${GREEN_NORMAL}ctrl+w/s ${COLOR_RESET}  Scroll the preview up/down
   ${GREEN_NORMAL}ctrl+x   ${COLOR_RESET}  Write a comment
   ${GREEN_NORMAL}esc      ${COLOR_RESET}  Return to Pull Request list
 EOF
-)
+}
 
-_fzf_pr_comment() {
-	if ! sed 1d <<<"${PR_OUTPUT}" | awk '{print $6,$7}' | grep -Eqw '[0-9]+'; then
-		_load_indicator $'No comments on this Pull Request\nRestarting ...' 0.45
-		_fzf_pr
-	fi
-
+fzf_pr_comment_function() {
 	GH_PR_COMMENTS_COMMAND=$'gh api graphql --paginate --raw-field query=\'query ($owner: String!, $name: String!, $number: Int!, $endCursor: String) { repository(owner: $owner, name: $name) { pullRequest(number: $number) { author { login } createdAt labels(first:10) { nodes { name } } number state title comments(first: 100, after: $endCursor) { totalCount nodes { author { login } body createdAt databaseId id reactions { totalCount viewerHasReacted } viewerCanReact viewerDidAuthor } pageInfo { endCursor hasNextPage }}}}}\' --template \'
 		{{- $prefix := .data.repository.pullRequest -}}
 		{{- $statePullRequestCommentColor := "green" -}}
@@ -462,7 +581,7 @@ _fzf_pr_comment() {
 			{{- tablerow "NODE_ID_HIDDEN" "DATABASE_ID_HIDDEN" ($prefix.title | color "white+bh") -}}{{- tablerender -}}
 		{{- $pullRequestAuthor := "[DELETED_USER]" -}}
 			{{- if $prefix.author -}}{{- $pullRequestAuthor = $prefix.author.login -}}{{- end -}}
-			{{- tablerow "NODE_ID_HIDDEN" "DATABASE_ID_HIDDEN" (printf "%s  #%.0f" $prefix.state $prefix.number | color $statePullRequestCommentColor) ($pullRequestAuthor | color "cyan+hb") (printf "│ %s ∙ %.0f Comments │" (timeago $prefix.createdAt) $prefix.comments.totalCount | color "gray+h") ("? - Toggle Help" | color "blue") -}}{{- tablerender -}}
+			{{- tablerow "NODE_ID_HIDDEN" "DATABASE_ID_HIDDEN" (printf "%s  #%.0f" $prefix.state $prefix.number | color $statePullRequestCommentColor) ($pullRequestAuthor | color "cyan+hb") (printf "│ %s ∙ %.0f Comments │" (timeago $prefix.createdAt) $prefix.comments.totalCount | color "gray+h") ("? Help · esc Quit" | color "blue") -}}{{- tablerender -}}
 			{{- if $prefix.labels.nodes -}}{{- tablerow "NODE_ID_HIDDEN" "DATABASE_ID_HIDDEN" ("Labels:" | color "white+b") (pluck "name" $prefix.labels.nodes | join ", " | printf "[ %s ]" | color "white") -}}{{- else -}}{{- tablerow "" -}}{{- end -}}{{- tablerender -}}
 			{{- tablerow "NODE_ID_HIDDEN" "DATABASE_ID_HIDDEN" ("———————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————" | color "gray+d") -}}{{- tablerender -}}
 			{{- tablerow "NODE_ID_HIDDEN" "DATABASE_ID_HIDDEN" "" -}}{{- tablerender -}}
@@ -484,37 +603,113 @@ _fzf_pr_comment() {
 			{{- tablerow .id .databaseId ($author | color $authorColor) (timeago .createdAt) ($emojiCount | color $emojiColor) .body -}}
 		{{- end -}}\''
 
-	PR_COMMENT_OUTPUT=$(FZF_DEFAULT_COMMAND="$GH_PR_COMMENTS_COMMAND --cache ${1:-$CACHE_TIME} --raw-field owner=${OWNER_REPO_NAME%/*} --raw-field name=${OWNER_REPO_NAME#*/} --field number=$PR_NUMBER" \
+	OUTPUT_SELECTION=$(FZF_DEFAULT_COMMAND="$GH_PR_COMMENTS_COMMAND --cache ${1:-$CACHE_TIME} --raw-field owner=${OWNER_REPO_NAME%/*} --raw-field name=${OWNER_REPO_NAME#*/} --field number=$TICKET_NUMBER" \
 		_fzf_basic_options --header-lines 6 --with-nth 3.. \
 		--prompt $'\e[1;94m'"Pull Request 💬 [$OWNER_REPO_NAME] > " \
 		--preview-window "+5:~5" --preview "$GH_COMMENTS_PREVIEW | $BAT_OR_CAT" \
-		--bind "?:toggle-preview+change-preview:echo -e '$HELP_PR_COMMENT_SECTION'" \
+		--bind "?:toggle-preview+change-preview:echo '$(help_pr_comment_function)'" \
 		--bind "tab:toggle-preview+change-preview:$GH_COMMENTS_PREVIEW | $BAT_OR_CAT" \
-		--bind "ctrl-b:execute-silent(open https://github.com/$OWNER_REPO_NAME/pull/$PR_NUMBER#issuecomment-{2})" \
-		--bind "ctrl-d:toggle-preview+change-preview(gh pr diff $PR_NUMBER --repo $OWNER_REPO_NAME"$' | if type -p delta >/dev/null; then delta --width ${FZF_PREVIEW_COLUMNS:-$COLUMNS}; else cat; fi)' \
-		--bind "ctrl-t:execute-silent($GH_ADD_REACTION --raw-field id={1} --raw-field emoji=$REACTION_EMOJI)+reload-sync:$GH_PR_COMMENTS_COMMAND --raw-field owner=${OWNER_REPO_NAME%/*} --raw-field name=${OWNER_REPO_NAME#*/} --field number=$PR_NUMBER || true" \
-		--bind "ctrl-u:execute-silent($GH_REMOVE_REACTION --raw-field id={1} --raw-field emoji=$REACTION_EMOJI)+reload-sync:$GH_PR_COMMENTS_COMMAND --raw-field owner=${OWNER_REPO_NAME%/*} --raw-field name=${OWNER_REPO_NAME#*/} --field number=$PR_NUMBER || true" \
+		--bind "ctrl-b:execute-silent(open https://github.com/$OWNER_REPO_NAME/pull/$TICKET_NUMBER#issuecomment-{2})" \
+		--bind "ctrl-d:toggle-preview+change-preview(gh pr diff $TICKET_NUMBER --repo $OWNER_REPO_NAME"$' | if type -p delta >/dev/null; then delta --width ${FZF_PREVIEW_COLUMNS:-$COLUMNS}; else cat; fi)' \
+		--bind "ctrl-t:execute-silent($GH_ADD_REACTION --raw-field id={1} --raw-field emoji=$REACTION_EMOJI)+reload-sync:$GH_PR_COMMENTS_COMMAND --raw-field owner=${OWNER_REPO_NAME%/*} --raw-field name=${OWNER_REPO_NAME#*/} --field number=$TICKET_NUMBER || true" \
+		--bind "ctrl-u:execute-silent($GH_REMOVE_REACTION --raw-field id={1} --raw-field emoji=$REACTION_EMOJI)+reload-sync:$GH_PR_COMMENTS_COMMAND --raw-field owner=${OWNER_REPO_NAME%/*} --raw-field name=${OWNER_REPO_NAME#*/} --field number=$TICKET_NUMBER || true" \
 		--expect "ctrl-x,esc") || true
 
-	case $(sed 1q <<<"${PR_COMMENT_OUTPUT}") in
+	printed_query="$(sed 1q <<<"$OUTPUT_SELECTION")"
+	expected_key="$(sed '1d;3d' <<<"$OUTPUT_SELECTION")"
+	# reset the variable
+	OUTPUT_SELECTION=""
+	case "$expected_key" in
 	ctrl-x)
-		gh issue comment "$PR_NUMBER" --repo "$OWNER_REPO_NAME"
-		_load_indicator "Restarting ..." 0.25
-		_fzf_pr_comment 0s
+		gh issue comment "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME"
+		_load_indicator
+		INITIAL_COMMENT_QUERY="$printed_query"
+		fzf_pr_comment_function 0s
 		;;
-	esc) _fzf_pr ;;
+	esc)
+		INITIAL_COMMENT_QUERY=""
+		fzf_pr_function
+		;;
+	esac
+}
+
+###################################### WORKFLOW RUNS
+help_workflow_run_function() {
+	cat <<EOF
+${WHITE_BOLD}Usage${COLOR_RESET}
+  gh look [ r | run ] [Flags] [Search term]
+
+${WHITE_BOLD}Flags${COLOR_RESET}
+  ${GREEN_NORMAL}<none>${COLOR_RESET}  List Workflow Runs from current directory
+  ${GREEN_NORMAL}-h    ${COLOR_RESET}  Help
+  ${GREEN_NORMAL}-n    ${COLOR_RESET}  Number of listed Runs  (default: 10, max: 100)
+  ${GREEN_NORMAL}-p    ${COLOR_RESET}  Pull Requests are included in the list (default: not included)
+  ${GREEN_NORMAL}-r    ${COLOR_RESET}  Specify a repository (form: OWNER/REPO)
+  ${GREEN_NORMAL}-u    ${COLOR_RESET}  Update the list every ${UPDATE_TIME} seconds (default: 10)
+  ${GREEN_NORMAL}-w    ${COLOR_RESET}  Display the preview window upon start (default: hidden)
+
+${WHITE_BOLD}Symbols${COLOR_RESET}
+  👀  List is updated every ${UPDATE_TIME}s, stop it with a defined hotkey
+  🏁  Status
+  ⌛️  Elapsed Time
+
+${WHITE_BOLD}Hotkeys${COLOR_RESET}
+  ${GREEN_NORMAL}?        ${COLOR_RESET}  Toggle help
+  ${GREEN_NORMAL}enter    ${COLOR_RESET}  See logs
+  ${GREEN_NORMAL}tab      ${COLOR_RESET}  Toggle preview
+  ${GREEN_NORMAL}shift+tab${COLOR_RESET}  Change preview window size
+  ${GREEN_NORMAL}ctrl+a   ${COLOR_RESET}  Attached artifacts are downloaded
+  ${GREEN_NORMAL}ctrl+b   ${COLOR_RESET}  Browser
+  ${GREEN_NORMAL}ctrl+d   ${COLOR_RESET}  Delete a Run
+  ${GREEN_NORMAL}ctrl+f   ${COLOR_RESET}  See failed logs
+  ${GREEN_NORMAL}ctrl+r   ${COLOR_RESET}  Start updating 👀 the list every ${UPDATE_TIME}s
+  ${GREEN_NORMAL}ctrl+u   ${COLOR_RESET}  Stop updating the list every ${UPDATE_TIME}s
+  ${GREEN_NORMAL}ctrl+w/s ${COLOR_RESET}  Scroll the preview up/down
+  ${GREEN_NORMAL}ctrl+x   ${COLOR_RESET}  Cancel a Run
+  ${GREEN_NORMAL}shift+up ${COLOR_RESET}  Switch to Pull Requests
+  ${GREEN_NORMAL}esc      ${COLOR_RESET}  Exit
+EOF
+}
+
+fzf_workflow_run_function() {
+	INITIAL_WORKFLOW_PROMPT="Workflow Runs $(printf "[%s]" "$OWNER_REPO_NAME")"
+	GH_WORKFLOWS_COMMAND="gh api --cache ${UPDATE_TIME}s --method GET --raw-field exclude_pull_requests=$EXCLUDE_PULL_REQUESTS --field per_page=$NUMBER_WORKFLOW_RUN_LIST repos/$OWNER_REPO_NAME/actions/runs "$'--jq \'["ID", "URL", "STATUS", "🏁", "⌛️", "DATE", "WORKFLOW", "BRANCH", "TITLE"], (.workflow_runs[] | [.id, .html_url, .status, (if (.conclusion == null and .status == null) then " " elif .conclusion == null then .status else .conclusion end), ((if .status == "in_progress" then now else (.updated_at | fromdateiso8601) end) - (.created_at | fromdateiso8601) | (./60|floor)+(.%60/60*100|round/100) | .*100|round/100), (.created_at | fromdateiso8601) as $time_sec | if ((now - $time_sec) / 3600) < 1 then ((now - $time_sec) / 60 | floor) | tostring + "min ago" elif ((now - $time_sec) / 3600) < 24 then ((now - $time_sec) / 3600 | floor) | tostring + "h ago" else ($time_sec | strftime("%d/%b/%y")) end, .name, .head_branch, .display_title]) | @tsv\' | column -t -s "\t"'
+
+	OUTPUT_SELECTION=$(FZF_DEFAULT_COMMAND="$GH_WORKFLOWS_COMMAND" \
+		_fzf_basic_options --header-lines 1 --with-nth 4.. \
+		--header $'\n? Help · esc Quit\n\n' \
+		--prompt "$INITIAL_WORKFLOW_PROMPT 👀 ${UPDATE_TIME}s > " \
+		--preview "gh run view {1} --repo $OWNER_REPO_NAME" \
+		--bind "?:toggle-preview+change-preview:echo '$(help_workflow_run_function)'" \
+		--bind "load:reload-sync:sleep $UPDATE_TIME;$GH_WORKFLOWS_COMMAND || true" \
+		--bind "enter:execute:if grep -Eq 'in_progress|queued' <<<{3}; then gh run watch --repo $OWNER_REPO_NAME; else GH_PAGER=\"bat -pl log\" gh run view --log {1} --repo $OWNER_REPO_NAME; fi" \
+		--bind "ctrl-a:become(gh run download {1} --repo $OWNER_REPO_NAME)+reload-sync:$GH_WORKFLOWS_COMMAND || true" \
+		--bind "ctrl-b:execute-silent:open {2}" \
+		--bind "ctrl-d:execute-silent(gh run delete {1} --repo $OWNER_REPO_NAME)+reload-sync:$GH_WORKFLOWS_COMMAND || true" \
+		--bind "ctrl-f:execute:GH_PAGER=\"bat -pl log\" gh run view --log-failed {1} --repo $OWNER_REPO_NAME" \
+		--bind "ctrl-r:rebind(load)+change-prompt($INITIAL_WORKFLOW_PROMPT 👀 ${UPDATE_TIME}s > )+reload-sync:$GH_WORKFLOWS_COMMAND || true" \
+		--bind "ctrl-u:unbind(load)+change-prompt:$INITIAL_WORKFLOW_PROMPT > " \
+		--bind "ctrl-x:execute-silent(gh run cancel {1} --repo $OWNER_REPO_NAME)+reload-sync:$GH_WORKFLOWS_COMMAND || true" \
+		--expect "shift-up") || true
+
+	expected_key="$(sed '1d;3d' <<<"$OUTPUT_SELECTION")"
+	# reset the variable
+	OUTPUT_SELECTION=""
+	case "$expected_key" in
+	shift-up) fzf_pr_function ;;
 	esac
 }
 
 ###################################### SEARCH
-HELP_SEARCH_SECTION=$(
+help_search_function() {
 	cat <<EOF
 ${WHITE_BOLD}Usage${COLOR_RESET}
-  gh look search [Flags] [Search term]
+  gh look [ s | search ] [Flags] [Search term]
 
 ${WHITE_BOLD}Flags${COLOR_RESET}
   ${GREEN_NORMAL}<term>${COLOR_RESET}  Search for GitHub repos
   ${GREEN_NORMAL}-c    ${COLOR_RESET}  Cache the response, for example "30s", "15m", "1h" (default: 20s)
+  ${GREEN_NORMAL}-h    ${COLOR_RESET}  Help
   ${GREEN_NORMAL}-w    ${COLOR_RESET}  Display the preview window upon start (default: hidden)
 
 ${WHITE_BOLD}Symbols${COLOR_RESET}
@@ -530,18 +725,18 @@ ${WHITE_BOLD}Hotkeys${COLOR_RESET}
   ${GREEN_NORMAL}ctrl+r    ${COLOR_RESET}  Reload
   ${GREEN_NORMAL}ctrl+t    ${COLOR_RESET}  Star repo
   ${GREEN_NORMAL}ctrl+u    ${COLOR_RESET}  Unstar repo
-  ${GREEN_NORMAL}pgup(Fn+↑)${COLOR_RESET}  Switch to your starred repos
-  ${GREEN_NORMAL}pgdn(Fn+↓)${COLOR_RESET}  Switch to Issues
+  ${GREEN_NORMAL}ctrl+w/s  ${COLOR_RESET}  Scroll the preview up/down
+  ${GREEN_NORMAL}shift+up  ${COLOR_RESET}  Switch to your starred repos
+  ${GREEN_NORMAL}shift+down${COLOR_RESET}  Switch to Issues
   ${GREEN_NORMAL}esc       ${COLOR_RESET}  Exit
 EOF
-)
+}
 
-_fzf_search() {
-
-	GH_SEARCH=$'gh api graphql --raw-field query=\'query($filter: String!) { search(query: $filter, type: REPOSITORY, first: 25) { repositoryCount nodes { ... on Repository {description isFork name owner {login} primaryLanguage {name} defaultBranchRef { target { ... on Commit { history(first: 1) { nodes { committedDate }}}}} stargazerCount viewerHasStarred}}}}\' --template=\'
+fzf_search_function() {
+	GH_SEARCH_COMMAND=$'gh api graphql --raw-field query=\'query($filter: String!) { search(query: $filter, type: REPOSITORY, first: 25) { repositoryCount nodes { ... on Repository {description isFork name owner {login} primaryLanguage {name} defaultBranchRef { target { ... on Commit { history(first: 1) { nodes { committedDate }}}}} stargazerCount viewerHasStarred}}}}\' --template=\'
 		{{- $limitCount := .data.search.repositoryCount -}}
 			{{- if gt .data.search.repositoryCount 25.0 -}}{{- $limitCount = 25.0 -}}{{- end -}}
-		{{- tablerow (printf "%.0f of ∑ %.0f Repos" $limitCount .data.search.repositoryCount | color "yellow") ("|" | color "white") ("? - Toggle Help" | color "blue") -}}{{- tablerender -}}
+		{{- tablerow (printf "%.0f of ∑ %.0f Repos" $limitCount .data.search.repositoryCount | color "yellow") ("|" | color "white") ("? Help · esc Quit" | color "blue") -}}{{- tablerender -}}
 		{{- tablerow "" -}}{{- tablerender -}}
 		{{- $headerColor := "blue+b" -}}
 			{{- tablerow ("REPO" | color $headerColor) "⭐" "🏁" ("LAST COMMIT" | color $headerColor) ("DESCRIPTION" | color $headerColor) -}}
@@ -566,49 +761,55 @@ _fzf_search() {
 				{{- end -}}
 			{{- tablerow (printf "%s%s%s" (.owner.login | color "cyan+h") ("/" | color "gray+h") (.name | color "cyan+hb")) ($stargazerCount | color $stargazerColor) ($langName | color "green") ($time | color "gray+h") .description -}}
 		{{- end -}}\''
-	SEARCH_OUTPUT=$(FZF_DEFAULT_COMMAND="$GH_SEARCH --raw-field filter=$INITIAL_QUERY --cache $CACHE_TIME" \
+
+	OUTPUT_SELECTION=$(FZF_DEFAULT_COMMAND="$GH_SEARCH_COMMAND --raw-field filter=$INITIAL_QUERY --cache $CACHE_TIME" \
 		_fzf_basic_options \
 		--disabled \
 		--prompt "Search  repos > " \
 		--header "" --header-lines 3 \
 		--preview "gh repo view {1}" --preview-window wrap:"$PREVIEW_WINDOW_VISIBILITY" \
 		--query "$INITIAL_QUERY" --exact \
-		--bind "change:first+reload-sync:$GH_SEARCH --raw-field filter={q} --cache $CACHE_TIME || true" \
-		--bind "?:toggle-preview+change-preview:echo -e '$HELP_SEARCH_SECTION'" \
+		--bind "change:first+reload-sync:$GH_SEARCH_COMMAND --raw-field filter={q} --cache $CACHE_TIME || true" \
+		--bind "?:toggle-preview+change-preview:echo '$(help_search_function)'" \
 		--bind 'tab:toggle-preview+change-preview(gh repo view {1})' \
 		--bind "ctrl-b:execute-silent(gh repo view {1} --web)" \
 		--bind $'ctrl-f:toggle-preview+change-preview([[ $(gh release list -R {1}) ]] && gh release view -R {1})' \
-		--bind "ctrl-r:reload-sync:$GH_SEARCH --raw-field filter={q} || true" \
-		--bind "ctrl-t:execute-silent(gh api -X PUT /user/starred/{1})+reload-sync:$GH_SEARCH --raw-field filter={q} --cache 0s || true" \
-		--bind "ctrl-u:execute-silent(gh api -X DELETE /user/starred/{1})+reload-sync:$GH_SEARCH --raw-field filter={q} --cache 0s || true" \
-		--expect "pgup,pgdn") || true
+		--bind "ctrl-r:reload-sync:$GH_SEARCH_COMMAND --raw-field filter={q} || true" \
+		--bind "ctrl-t:execute-silent(gh api --method PUT /user/starred/{1})+reload-sync:$GH_SEARCH_COMMAND --raw-field filter={q} --cache 0s || true" \
+		--bind "ctrl-u:execute-silent(gh api --method DELETE /user/starred/{1})+reload-sync:$GH_SEARCH_COMMAND --raw-field filter={q} --cache 0s || true" \
+		--expect "shift-up,shift-down") || true
 
-	case $(sed 1q <<<"${SEARCH_OUTPUT}") in
-	pgup)
+	expected_key="$(sed '1d;3d' <<<"$OUTPUT_SELECTION")"
+	output_textline="$(sed '1d;2d' <<<"$OUTPUT_SELECTION" | awk '{print $1}')"
+	# reset the variable
+	OUTPUT_SELECTION=""
+	case "$expected_key" in
+	shift-up)
 		INITIAL_QUERY=""
 		USER_NAME="$(gh api graphql --cache 1h --raw-field query='{viewer{login}}' --jq '.data.viewer.login')"
-		_fzf_star
+		fzf_star_function
 		;;
-	pgdn)
+	shift-down)
 		INITIAL_QUERY=""
-		OWNER_REPO_NAME=$(sed 1d <<<"${SEARCH_OUTPUT}" | awk '{print $1}')
+		OWNER_REPO_NAME=${output_textline:-"$OWNER_REPO_NAME"}
 		if [ -z "$OWNER_REPO_NAME" ]; then
 			OWNER_REPO_NAME="$(gh api graphql --cache 1h --field owner=:owner --field name=:repo --raw-field query=$'query ($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { nameWithOwner }}' --jq '.[].repository.nameWithOwner' 2>/dev/null || echo "cli/cli")"
 		fi
-		_fzf_issue 0s
+		fzf_issue_function 0s
 		;;
 	esac
 }
 
 ###################################### STARS
-HELP_STAR_SECTION=$(
+help_star_function() {
 	cat <<EOF
 ${WHITE_BOLD}Usage${COLOR_RESET}
-  gh look star [Flags] [Search term]
+  gh look [ st | star ] [Flags] [Search term]
 
 ${WHITE_BOLD}Flags${COLOR_RESET}
   ${GREEN_NORMAL}<none>${COLOR_RESET}  List your stars (sorted by the time the user set the star)
   ${GREEN_NORMAL}-c    ${COLOR_RESET}  Cache the response, for example "30s", "15m", "1h" (default: 20s)
+  ${GREEN_NORMAL}-h    ${COLOR_RESET}  Help
   ${GREEN_NORMAL}-u    ${COLOR_RESET}  List stars of another user
   ${GREEN_NORMAL}-w    ${COLOR_RESET}  Display the preview window upon start (default: hidden)
 
@@ -617,22 +818,23 @@ ${WHITE_BOLD}Symbols${COLOR_RESET}
   🏁  Primary language
 
 ${WHITE_BOLD}Hotkeys${COLOR_RESET}
-  ${GREEN_NORMAL}?         ${COLOR_RESET}Toggle help
-  ${GREEN_NORMAL}tab       ${COLOR_RESET}Preview README
-  ${GREEN_NORMAL}shift+tab ${COLOR_RESET}Change preview window size
-  ${GREEN_NORMAL}ctrl+b    ${COLOR_RESET}Browser
-  ${GREEN_NORMAL}ctrl+r    ${COLOR_RESET}Reload
-  ${GREEN_NORMAL}ctrl+f    ${COLOR_RESET}Preview release infos
-  ${GREEN_NORMAL}ctrl+t    ${COLOR_RESET}Star repo (useful for stars of another user)
-  ${GREEN_NORMAL}ctrl+u    ${COLOR_RESET}Unstar repo
-  ${GREEN_NORMAL}pgdn(Fn+↓)${COLOR_RESET}Switch to Search
-  ${GREEN_NORMAL}esc       ${COLOR_RESET}Exit
+  ${GREEN_NORMAL}?         ${COLOR_RESET}  Toggle help
+  ${GREEN_NORMAL}tab       ${COLOR_RESET}  Preview README
+  ${GREEN_NORMAL}shift+tab ${COLOR_RESET}  Change preview window size
+  ${GREEN_NORMAL}ctrl+b    ${COLOR_RESET}  Browser
+  ${GREEN_NORMAL}ctrl+r    ${COLOR_RESET}  Reload
+  ${GREEN_NORMAL}ctrl+f    ${COLOR_RESET}  Preview release infos
+  ${GREEN_NORMAL}ctrl+t    ${COLOR_RESET}  Star repo (useful for stars of another user)
+  ${GREEN_NORMAL}ctrl+u    ${COLOR_RESET}  Unstar repo
+  ${GREEN_NORMAL}ctrl+w/s  ${COLOR_RESET}  Scroll the preview up/down
+  ${GREEN_NORMAL}shift+down${COLOR_RESET}  Switch to Search
+  ${GREEN_NORMAL}esc       ${COLOR_RESET}  Exit
 EOF
-)
+}
 
-_fzf_star() {
-	GH_STAR=$'gh api graphql --paginate --raw-field query=\'query($endCursor: String, $USER_NAME:String! ) { user(login:$USER_NAME) { starredRepositories(orderBy: { field: STARRED_AT direction: DESC }, first: 100, after: $endCursor) { totalCount pageInfo { hasNextPage, endCursor } nodes { name owner {login} primaryLanguage {name} stargazerCount viewerHasStarred defaultBranchRef { target { ... on Commit { history(first: 1) { nodes { committedDate }}}}} description }}}}\' --template \'
-		{{- tablerow (printf "∑ %.0f Starred Repos" .data.user.starredRepositories.totalCount | color "yellow+h") ( "|" | color "white") ("? - Toggle Help" | color "blue") -}}{{- tablerender -}}
+fzf_star_function() {
+	GH_STAR_COMMAND=$'gh api graphql --paginate --raw-field query=\'query($endCursor: String, $USER_NAME:String! ) { user(login:$USER_NAME) { starredRepositories(orderBy: { field: STARRED_AT direction: DESC }, first: 100, after: $endCursor) { totalCount pageInfo { hasNextPage, endCursor } nodes { name owner {login} primaryLanguage {name} stargazerCount viewerHasStarred defaultBranchRef { target { ... on Commit { history(first: 1) { nodes { committedDate }}}}} description }}}}\' --template \'
+		{{- tablerow (printf "∑ %.0f Starred Repos" .data.user.starredRepositories.totalCount | color "yellow+h") ( "|" | color "white") ("? Help · esc Quit" | color "blue") -}}{{- tablerender -}}
 		{{- tablerow "" -}}{{- tablerender -}}
 		{{- $headerColor := "yellow+b" -}}
 			{{- tablerow ("REPO" | color $headerColor) "⭐" "🏁" ("LAST COMMIT" | color $headerColor) ("DESCRIPTION" | color $headerColor) -}}
@@ -658,72 +860,45 @@ _fzf_star() {
 		{{- tablerow (printf "%s%s%s" (.owner.login | color "cyan+h") ("/" | color "gray+h") (.name | color "cyan+hb")) ($stargazerCount | color $stargazerColor) ($langName | color "green") ($time | color "gray+h") .description -}}
 		{{- end -}}\''
 
-	STAR_OUTPUT=$(FZF_DEFAULT_COMMAND="$GH_STAR --raw-field USER_NAME=$USER_NAME --cache $CACHE_TIME" \
+	OUTPUT_SELECTION=$(FZF_DEFAULT_COMMAND="$GH_STAR_COMMAND --raw-field USER_NAME=$USER_NAME --cache $CACHE_TIME" \
 		_fzf_basic_options --nth 1,3,7.. \
 		--prompt $'\e[1;93mSearch  stars'" [$USER_NAME] > " --header "" --header-lines 3 \
 		--preview "gh repo view {1}" --preview-window wrap:"$PREVIEW_WINDOW_VISIBILITY" \
 		--query "$INITIAL_QUERY" --exact \
-		--bind "?:toggle-preview+change-preview:echo -e '$HELP_STAR_SECTION'" \
+		--bind "?:toggle-preview+change-preview:echo '$(help_star_function)'" \
 		--bind 'tab:toggle-preview+change-preview(gh repo view {1})' \
 		--bind "ctrl-b:execute-silent(gh repo view {1} --web)" \
 		--bind $'ctrl-f:toggle-preview+change-preview([[ $(gh release list -R {1}) ]] && gh release view -R {1})' \
-		--bind "ctrl-r:reload-sync:$GH_STAR --raw-field USER_NAME=$USER_NAME --cache 0s" \
-		--bind "ctrl-t:execute-silent(gh api --method PUT user/starred/{1})+reload-sync:$GH_STAR --raw-field USER_NAME=$USER_NAME --cache 0s" \
-		--bind "ctrl-u:execute-silent(gh api --method DELETE user/starred/{1})+reload-sync:$GH_STAR --raw-field USER_NAME=$USER_NAME --cache 0s" \
-		--expect "pgdn") || true
+		--bind "ctrl-r:reload-sync:$GH_STAR_COMMAND --raw-field USER_NAME=$USER_NAME --cache 0s" \
+		--bind "ctrl-t:execute-silent(gh api --method PUT user/starred/{1})+reload-sync:$GH_STAR_COMMAND --raw-field USER_NAME=$USER_NAME --cache 0s" \
+		--bind "ctrl-u:execute-silent(gh api --method DELETE user/starred/{1})+reload-sync:$GH_STAR_COMMAND --raw-field USER_NAME=$USER_NAME --cache 0s" \
+		--expect "shift-down") || true
 
-	case $(sed 1q <<<"${STAR_OUTPUT}") in
-	pgdn)
+	expected_key="$(sed '1d;3d' <<<"$OUTPUT_SELECTION")"
+	output_textline="$(sed '1d;2d' <<<"$OUTPUT_SELECTION" | awk '{print $1}')"
+	# reset the variable
+	OUTPUT_SELECTION=""
+	case "$expected_key" in
+	shift-down)
 		INITIAL_QUERY=""
-		_fzf_search
+		OWNER_REPO_NAME="$output_textline"
+		fzf_search_function
 		;;
 	esac
 }
 
-# TODO the statement [[...]] && ... || ... is a typical bash pitfall case, if the command after && fails the command after || gets executed as well (it should not); use a simple if ... else ... statement
-# https://mywiki.wooledge.org/BashPitfalls#cmd1_.26.26_cmd2_.7C.7C_cmd3
-# TODO remove all my emojis from the issue when the hotkey is called.
-# TODO it would be useful to store an emoji in the scratch file, but it must be visually clear which emoji is actively set when generating a reaction
-# TODO on return from the comment section it falls back to the original, rather than the last
-# TODO the I only want the merge event and hide the close event on PR's https://pkg.go.dev/text/template
-# TODO I would like to have a larger help page, but only for the help page, for example 99%
-# TODO use "--print-query" to save my input string when switching to the comments and restore it when I switch back with "--bind 'start:put("last query string")"
-# TODO sometimes when searching for a popular repo like "vscode, tsx,..." it does not give the result on the first try and you have to reload with "ctrl+r". INVESTIGATE, why this is!
-# TODO add workflow section
-
-REACTION_EMOJI="THUMBS_UP"
-SORTING_ORDER=""
-OWNER_REPO_NAME=""
-USER_NAME=""
-PREVIEW_WINDOW_VISIBILITY="hidden"
-ISSUE_OUTPUT=""
-ISSUE_COMMENT_OUTPUT=""
-PR_OUTPUT=""
-PR_COMMENT_OUTPUT=""
-BAT_OR_CAT="cat"
-# for better speed
-CACHE_TIME="20s"
-MIN_FZF_VERSION="0.36.0"
-
-GH_ADD_REACTION=$'gh api graphql --silent --raw-field query=\'mutation($id: ID! $emoji: ReactionContent! ) { addReaction(input: {subjectId: $id content: $emoji }) { clientMutationId }}\''
-GH_REMOVE_REACTION=$'gh api graphql --silent --raw-field query=\'mutation($id: ID! $emoji: ReactionContent! ) { removeReaction(input: {subjectId: $id content: $emoji }) { clientMutationId }}\''
-
-# Get the name and date of the commenter, convert the emojis to real emojis, add the total number next to it. Highlight if the viewer has used it.
-# Get the last 4 emoji reactor names for each group,
-# based on the length of the array of reactor names, either print or slice 1 and add a ", ..." as an indicator of more than three
-# End the list with the commenter's actual message.
-GH_COMMENTS_PREVIEW=$'gh api graphql --raw-field id={1} --raw-field query=\'query($id: ID! ){node(id: $id) {... on Comment { author{login} body createdAt viewerDidAuthor} ... on Reactable { reactionGroups { content viewerHasReacted reactors(last: 4) { nodes {... on User { login }} totalCount }}}}}\' --template \'{{- $prefix := .data.node -}}{{- $author := "[DELETED_USER]" -}}{{- if $prefix.author -}}{{- $author = $prefix.author.login -}}{{- end -}}{{- $authorColor := "cyan+hb" -}}{{- if $prefix.viewerDidAuthor -}}{{- $authorColor = "yellow+bh" -}}{{- end -}}{{- tablerow  ("◥■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■◤"| color "gray+d") -}}{{- tablerender -}}{{- tablerow ($author | color $authorColor) (timeago $prefix.createdAt | color "white+bh") -}}{{- tablerender -}}{{- range $prefix.reactionGroups -}}{{ $emoji := .content }}{{ if eq .content "CONFUSED" }}{{ $emoji = "😕" }}{{ else if eq .content "EYES" }}{{ $emoji = "👀" }}{{ else if eq .content "HEART" }}{{ $emoji = "💖" }}{{ else if eq .content "HOORAY" }}{{ $emoji = "🎉" }}{{ else if eq .content "LAUGH" }}{{ $emoji = "😄" }}{{ else if eq .content "THUMBS_DOWN" }}{{ $emoji = "👎" }}{{ else if eq .content "THUMBS_UP" }}{{ $emoji = "👍" }}{{ else if eq .content "ROCKET" }}{{ $emoji = "🚀" }}{{ end }}{{ if gt .reactors.totalCount 0.0 }}{{ $emojiGiver := pluck "login" .reactors.nodes | join ", " | color "green+d" }}{{ if gt (pluck "login" .reactors.nodes | len ) 3 }}{{- /* NOTE: number of names limited */ -}}{{ $emojiGiver = slice (pluck "login" .reactors.nodes) 1 | join ", " | printf "%s, ..." | color "green+d" }}{{end}}{{- $emojiTotal := .reactors.totalCount | color "green+bd" -}}{{- if .viewerHasReacted -}}{{- $emojiTotal = .reactors.totalCount | color "yellow+bh" -}}{{- end -}}{{- tablerow (printf "%s %s" $emojiTotal $emoji) $emojiGiver -}}{{- tablerender -}}{{- end -}}{{- end }}{{- tablerow  ("‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥‥"| color "gray+d") -}}{{- tablerender -}}{{- tablerow "" -}}{{- tablerender -}}{{- $prefix.body -}}\''
+# <------------------- SCRIPT -------------------- >
 
 if [ $# = 0 ]; then
-	die_with_octocat "Invalid command: $(echo -e "\n$HELP_GENERAL")"
+	_die_with_octocat "Invalid command:" "$(help_general_function)"
 else
 	############# Check needed programs installed #############
 	if ! command -v fzf >/dev/null; then
-		die_with_octocat "Fuzzy finder (fzf) was not found."
+		_die_with_octocat "Fuzzy finder (fzf) was not found."
 	fi
 	USER_FZF_VERSION="$(fzf --version | awk '{print $1}')"
 	if [ "$(_version_number $MIN_FZF_VERSION)" -gt "$(_version_number "$USER_FZF_VERSION")" ]; then
-		die_with_octocat "Minimum required \`fzf\` version is: $MIN_FZF_VERSION (found: $USER_FZF_VERSION)"
+		_die_with_octocat "Minimum required \`fzf\` version is: $MIN_FZF_VERSION (found: $USER_FZF_VERSION)"
 	fi
 	if command -v bat >/dev/null; then
 		BAT_OR_CAT="bat --color always --language md --style plain"
@@ -737,36 +912,35 @@ else
 		touch "$SCRATCH_FILE" 2>/dev/null || echo "Not allowed creating $SCRATCH_FILE"
 	fi
 	if [ ! -w "$SCRATCH_FILE" ]; then
-		die_with_octocat "Not allowed writing to: $SCRATCH_FILE"
+		_die_with_octocat "Not allowed writing to: $SCRATCH_FILE"
 	fi
 fi
 
 while [ $# -gt 0 ]; do
 	COMMAND_ARG="$1"
 	case "$COMMAND_ARG" in
-	issue | pr)
+	i | issue | p | pr)
 		shift
-		while getopts :c:e:o:r:w flag; do
+		while getopts :c:eho:r:w flag; do
 			case "$flag" in
 			c)
 				if [[ "$OPTARG" =~ ^[0-9]+[smh]$ ]]; then
 					CACHE_TIME="$OPTARG"
 				else
-					die_with_octocat "Invalid cache time: $OPTARG"
+					_die_with_octocat "Invalid cache time: $OPTARG"
 				fi
 				;;
-			e)
-				if [[ "CONFUSED EYES HEART HOORAY LAUGH THUMBS_DOWN THUMBS_UP ROCKET" =~ $OPTARG ]]; then
-					REACTION_EMOJI="$OPTARG"
-				else
-					die_with_octocat "Invalid emoji: $OPTARG"
-				fi
+			e) REACTION_EMOJI="$(_emoji_picker)" ;;
+			h)
+				grep -Eq "i|issue" <<<"$COMMAND_ARG" && help_issue_function
+				grep -Eq "p|pr" <<<"$COMMAND_ARG" && help_pr_function
+				exit 0
 				;;
 			o)
 				if [[ "$OPTARG" =~ ^[A-Za-z-]{7,}$ ]]; then
 					SORTING_ORDER="sort:$OPTARG"
 				else
-					die_with_octocat "Invalid sort order: $OPTARG"
+					_die_with_octocat "Invalid sort order: $OPTARG" "Check the readme or this link: https://docs.github.com/en/search-github/searching-on-github"
 				fi
 				;;
 			r)
@@ -775,16 +949,16 @@ while [ $# -gt 0 ]; do
 				if [[ "$OPTARG" =~ ^[^:/]+/[^:/]+$ ]]; then
 					OWNER_REPO_NAME="$OPTARG"
 				else
-					die_with_octocat "Respect the syntax: gh look {issue,pr} -R OWNER/REPO"
+					_die_with_octocat "Respect the syntax: gh look {issue,pr} -R OWNER/REPO"
 				fi
 				if ! gh api --silent repos/"$OWNER_REPO_NAME" 2>/dev/null; then
-					die_with_octocat "No GitHub repo called: $OWNER_REPO_NAME"
+					_die_with_octocat "No GitHub repo called: $OWNER_REPO_NAME"
 				fi
 				;;
 			w) PREVIEW_WINDOW_VISIBILITY="nohidden" ;;
 			*)
-				grep -q "issue" <<<"$COMMAND_ARG" && die_with_octocat "Invalid command: $(echo -e "\n$HELP_ISSUE_SECTION")"
-				grep -q "pr" <<<"$COMMAND_ARG" && die_with_octocat "Invalid command: $(echo -e "\n$HELP_PR_SECTION")"
+				grep -Eq "i|issue" <<<"$COMMAND_ARG" && _die_with_octocat "Invalid command:" "$(help_issue_function)"
+				grep -Eq "p|pr" <<<"$COMMAND_ARG" && _die_with_octocat "Invalid command:" "$(help_pr_function)"
 				;;
 			esac
 		done
@@ -793,64 +967,124 @@ while [ $# -gt 0 ]; do
 		INITIAL_QUERY="$*"
 		if [ -z "$OWNER_REPO_NAME" ]; then
 			# if the OWNER_REPO_NAME is not set yet, check if the repo has a remote and assign the variable
-			git ls-remote --get-url >/dev/null 2>&1 || die_with_octocat "No remote git repo found"
+			git ls-remote --get-url >/dev/null 2>&1 || _die_with_octocat "No remote git repo found"
 			# local alternative, but requires Perl-compatible regular expressions (PCREs)
 			# git remote -v | grep -m 1 -oP '(?<=\:).+(?=\.)'
 			OWNER_REPO_NAME="$(gh api graphql --cache 1h --field owner=:owner --field name=:repo --raw-field query=$'query ($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { nameWithOwner }}' --jq '.[].repository.nameWithOwner')"
 		fi
 
-		grep -q "issue" <<<"$COMMAND_ARG" && _fzf_issue
-		grep -q "pr" <<<"$COMMAND_ARG" && _fzf_pr
+		grep -Eq "i|issue" <<<"$COMMAND_ARG" && fzf_issue_function
+		grep -Eq "p|pr" <<<"$COMMAND_ARG" && fzf_pr_function
 		break
 		;;
-	search)
+	r | run)
 		shift
-		while getopts :c:w flag; do
+		while getopts "hn:pr:u:w" option; do
+			case "$option" in
+			h)
+				help_workflow_run_function
+				exit 0
+				;;
+			n) NUMBER_WORKFLOW_RUN_LIST=${OPTARG} ;;
+			p) EXCLUDE_PULL_REQUESTS=false ;;
+			r)
+				if [[ "$OPTARG" =~ ^[^:/]+/[^:/]+$ ]]; then
+					OWNER_REPO_NAME="$OPTARG"
+				else
+					_die_with_octocat "Respect the syntax: gh look {issue,pr} -R OWNER/REPO"
+				fi
+				if ! gh api --silent repos/"$OWNER_REPO_NAME" 2>/dev/null; then
+					_die_with_octocat "No GitHub repo called: $OWNER_REPO_NAME"
+				fi
+				;;
+			u)
+				if [[ "$OPTARG" =~ ^[0-9]+$ ]]; then
+					UPDATE_TIME=${OPTARG}
+				else
+					_die_with_octocat "Invalid update time: $OPTARG"
+				fi
+				;;
+			w) PREVIEW_WINDOW_VISIBILITY="nohidden" ;;
+			*)
+				_die_with_octocat "Invalid command:" "$(help_workflow_run_function)"
+				;;
+			esac
+		done
+		shift "$((OPTIND - 1))"
+		test=$(gh repo set-default --view "$(git config --get remote.origin | cut -d: -f2 | cut -d. -f1)" 2>/dev/null || true)
+		# "set-default --view" always returns a zero exit value, the workaround is to test for any spaces in the string
+		[[ -z ${OWNER_REPO_NAME} ]] && [[ ! $test =~ \  ]] && OWNER_REPO_NAME="$test"
+
+		if [[ -z ${OWNER_REPO_NAME} ]]; then
+			remote_choice="$(git remote -v | cut -d: -f2 | cut -d. -f1 | sort -u)"
+			if [[ -z $remote_choice ]]; then
+				_die_with_octocat "No Git remotes found."
+			elif [[ $(wc -l <<<"$remote_choice") -eq 1 ]]; then
+				OWNER_REPO_NAME="$remote_choice"
+			elif [[ $(wc -l <<<"$remote_choice") -gt 1 ]]; then
+				OWNER_REPO_NAME="$(_fzf_basic_options <<<"$remote_choice" \
+					--header "For which repository would you like to see Workflow Runs ?")"
+			fi
+		fi
+		fzf_workflow_run_function
+		break
+		;;
+	s | search)
+		shift
+		while getopts :c:hw flag; do
 			case "$flag" in
 			c)
 				if [[ "$OPTARG" =~ ^[0-9]+[smh]$ ]]; then
 					CACHE_TIME="$OPTARG"
 				else
-					die_with_octocat "Invalid cache time: $OPTARG"
+					_die_with_octocat "Invalid cache time: $OPTARG"
 				fi
+				;;
+			h)
+				help_search_function
+				exit 0
 				;;
 			w) PREVIEW_WINDOW_VISIBILITY="nohidden" ;;
 			*)
-				die_with_octocat "Invalid command: $(echo -e "\n$HELP_SEARCH_SECTION")"
+				_die_with_octocat "Invalid command:" "$(help_search_function)"
 				;;
 			esac
 		done
 		shift "$((OPTIND - 1))"
 		INITIAL_QUERY="$*"
-		_fzf_search
+		fzf_search_function
 		break
 		;;
-	star)
+	st | star)
 		shift
-		while getopts :c:u:w flag; do
+		while getopts :c:hu:w flag; do
 			case "$flag" in
 			c)
 				if [[ "$OPTARG" =~ ^[0-9]+[smh]$ ]]; then
 					CACHE_TIME="$OPTARG"
 				else
-					die_with_octocat "Invalid cache time: $OPTARG"
+					_die_with_octocat "Invalid cache time: $OPTARG"
 				fi
+				;;
+			h)
+				help_star_function
+				exit 0
 				;;
 			u)
 				# local syntax test first to fail fast, and then gh api test
 				if [[ "$OPTARG" =~ ^[^:/]+$ ]]; then
 					USER_NAME="$OPTARG"
 				else
-					die_with_octocat "Respect the syntax: gh look star -u USER"
+					_die_with_octocat "Respect the syntax: gh look star -u USER"
 				fi
 				# gh api --silent users/... would be shorter, but would result in a false positive for organizations
 				if ! gh api graphql --silent --raw-field USER_NAME="$USER_NAME" --raw-field query=$'query ($USER_NAME: String!) { user(login: $USER_NAME) { login }}' 2>/dev/null; then
-					die_with_octocat "No USER called: $USER_NAME"
+					_die_with_octocat "No USER called: $USER_NAME"
 				fi
 				;;
 			w) PREVIEW_WINDOW_VISIBILITY="nohidden" ;;
 			*)
-				die_with_octocat "Invalid command: $(echo -e "\n$HELP_STAR_SECTION")"
+				_die_with_octocat "Invalid command:" "$(help_star_function)"
 				;;
 			esac
 		done
@@ -860,11 +1094,15 @@ while [ $# -gt 0 ]; do
 		if [ -z "$USER_NAME" ]; then
 			USER_NAME="$(gh api graphql --cache 1h --raw-field query='{viewer{login}}' --jq '.data.viewer.login')"
 		fi
-		_fzf_star
+		fzf_star_function
+		break
+		;;
+	-h | --help | h | help)
+		help_general_function
 		break
 		;;
 	*)
-		die_with_octocat "Invalid command: $(echo -e "\n$HELP_GENERAL")"
+		_die_with_octocat "Invalid command:" "$(help_general_function)"
 		;;
 	esac
 done
