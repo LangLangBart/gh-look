@@ -46,32 +46,32 @@ gh look [Commands] [Flags] [Search term]
 - see available `Flags` for each command with `gh look [Command] -h` or interactively with <kbd>?</kbd>
 
 ### Hotkeys
-- <kbd>shift-up</kbd>/<kbd>shift-down</kbd> switches between commands
+- switch between commands with <kbd>shift+left</kbd>/<kbd>shift+right</kbd>
 
 ```mermaid
 %% GitHub seems to not display fontawesome icons
 %% https://fontawesome.com/search
 %% https://mermaid.js.org/syntax/flowchart.html#basic-support-for-fontawesome
-flowchart BT
+flowchart RL
 
     Help([fa:fa-circle-question Help Preview])
     Stars & Search & Issues & PullRequests  & Workflows -->|?| Help
-    Search([fa:fa-magnifying-glass Search]) -->|shift-up| Stars([fa:fa-user Stars])
-    Stars-->|shift-down| Search
-    Search -->|shift-down| Issues
-    Issues -->|shift-up| Search
+    Search([fa:fa-magnifying-glass Search]) -->|shift+left| Stars([fa:fa-user Stars])
+    Stars-->|shift+right| Search
+    Search -->|shift+right| Issues
+    Issues -->|shift+left| Search
 
     subgraph Issue_and_PR[fa:fa-nonsenseValue]
-        Issues([fa:fa-circle-dot Issues]) --> |shift-down|PullRequests([fa:fa-code-pull-request Pull Requests])
-        PullRequests --> |shift-up| Issues
+        Issues([fa:fa-circle-dot Issues]) --> |shift+right|PullRequests([fa:fa-code-pull-request Pull Requests])
+        PullRequests --> |shift+left| Issues
     end
 
     subgraph Workflow[fa:fa-nonsenseValue]
         Workflows([fa:fa-circle-play Workflow Runs])
     end
 
-    Workflows -->|shift-up| PullRequests
-    PullRequests -->|shift-down| Workflows
+    Workflows -->|shift+left| PullRequests
+    PullRequests -->|shift+right| Workflows
 
     Comments([fa:fa-comments Comments])  <-- Enter/Esc --> Issue_and_PR
 

@@ -81,8 +81,7 @@ _fzf_basic_options() {
 		--ellipsis '' --border horizontal \
 		--no-separator --print-query \
 		--preview-window "$PREVIEW_WINDOW_VISIBILITY:wrap:right:65%:border-left" \
-		--bind 'btab:change-preview-window(50%:nohidden|65%:down:nohidden:border-top|nohidden)' \
-		--bind 'ctrl-w:preview-half-page-up,ctrl-s:preview-half-page-down'
+		--bind 'btab:change-preview-window(50%:nohidden|65%:down:nohidden:border-top|nohidden)'
 }
 
 # More ideas: https://raw.githubusercontent.com/sindresorhus/cli-spinners/master/spinners.json
@@ -154,26 +153,25 @@ ${WHITE_BOLD}Symbols${COLOR_RESET}
   📣  Total number of emojis (green reactable; yellow reacted; red locked)
 
 ${WHITE_BOLD}Hotkeys${COLOR_RESET}
-  ${GREEN_NORMAL}?         ${COLOR_RESET}  Toggle help
-  ${GREEN_NORMAL}enter     ${COLOR_RESET}  See comments
-  ${GREEN_NORMAL}tab       ${COLOR_RESET}  Toggle preview
-  ${GREEN_NORMAL}shift+tab ${COLOR_RESET}  Change preview window size
-  ${GREEN_NORMAL}ctrl+a    ${COLOR_RESET}  ALL Issues
-  ${GREEN_NORMAL}ctrl+b    ${COLOR_RESET}  Browser
-  ${GREEN_NORMAL}ctrl+e    ${COLOR_RESET}  Edit an Issue
-  ${GREEN_NORMAL}ctrl+f    ${COLOR_RESET}  Fuzzy search
-  ${GREEN_NORMAL}ctrl+g    ${COLOR_RESET}  Close Issue after confirmation
-  ${GREEN_NORMAL}ctrl+n    ${COLOR_RESET}  New Issue
-  ${GREEN_NORMAL}ctrl+o    ${COLOR_RESET}  OPEN Issues only
-  ${GREEN_NORMAL}ctrl+p    ${COLOR_RESET}  Put "involves:@me" into the search
-  ${GREEN_NORMAL}ctrl+r    ${COLOR_RESET}  Reload
-  ${GREEN_NORMAL}ctrl+t    ${COLOR_RESET}  React with $(_emoji_from_name "$REACTION_EMOJI") emoji
-  ${GREEN_NORMAL}ctrl+u    ${COLOR_RESET}  Undo the $(_emoji_from_name "$REACTION_EMOJI") emoji reaction
-  ${GREEN_NORMAL}ctrl+w/s  ${COLOR_RESET}  Scroll the preview up/down
-  ${GREEN_NORMAL}ctrl+x    ${COLOR_RESET}  Write a comment
-  ${GREEN_NORMAL}shift+up  ${COLOR_RESET}  Switch to Search
-  ${GREEN_NORMAL}shift+down${COLOR_RESET}  Switch to Pull Requests
-  ${GREEN_NORMAL}esc       ${COLOR_RESET}  Exit
+  ${GREEN_NORMAL}?          ${COLOR_RESET}  Toggle help
+  ${GREEN_NORMAL}enter      ${COLOR_RESET}  See comments
+  ${GREEN_NORMAL}tab        ${COLOR_RESET}  Toggle preview
+  ${GREEN_NORMAL}shift+tab  ${COLOR_RESET}  Change preview window size
+  ${GREEN_NORMAL}ctrl+a     ${COLOR_RESET}  ALL Issues
+  ${GREEN_NORMAL}ctrl+b     ${COLOR_RESET}  Browser
+  ${GREEN_NORMAL}ctrl+e     ${COLOR_RESET}  Edit an Issue
+  ${GREEN_NORMAL}ctrl+f     ${COLOR_RESET}  Fuzzy search
+  ${GREEN_NORMAL}ctrl+g     ${COLOR_RESET}  Close Issue after confirmation
+  ${GREEN_NORMAL}ctrl+n     ${COLOR_RESET}  New Issue
+  ${GREEN_NORMAL}ctrl+o     ${COLOR_RESET}  OPEN Issues only
+  ${GREEN_NORMAL}ctrl+p     ${COLOR_RESET}  Put "involves:@me" into the search
+  ${GREEN_NORMAL}ctrl+r     ${COLOR_RESET}  Reload
+  ${GREEN_NORMAL}ctrl+t     ${COLOR_RESET}  React with $(_emoji_from_name "$REACTION_EMOJI") emoji
+  ${GREEN_NORMAL}ctrl+u     ${COLOR_RESET}  Undo the $(_emoji_from_name "$REACTION_EMOJI") emoji reaction
+  ${GREEN_NORMAL}ctrl+x     ${COLOR_RESET}  Write a comment
+  ${GREEN_NORMAL}shift+left ${COLOR_RESET}  Switch to Search
+  ${GREEN_NORMAL}shift+right${COLOR_RESET}  Switch to Pull Requests
+  ${GREEN_NORMAL}esc        ${COLOR_RESET}  Exit
 EOF
 }
 
@@ -229,7 +227,7 @@ fzf_issue_function() {
 		--bind "ctrl-r:reload-sync:(grep -q A <$SCRATCH_FILE && $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME \"{q} || $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME state:open \"{q}) || true" \
 		--bind "ctrl-t:execute-silent($GH_ADD_REACTION --raw-field id={1} --raw-field emoji=$REACTION_EMOJI)+reload-sync:(grep -q A <$SCRATCH_FILE && $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME \"{q} || $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME state:open \"{q}) || true" \
 		--bind "ctrl-u:execute-silent($GH_REMOVE_REACTION --raw-field id={1} --raw-field emoji=$REACTION_EMOJI)+reload-sync:(grep -q A <$SCRATCH_FILE && $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME \"{q} || $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME state:open \"{q}) || true" \
-		--expect "ctrl-e,ctrl-g,ctrl-n,ctrl-x,enter,shift-up,shift-down") || true
+		--expect "ctrl-e,ctrl-g,ctrl-n,ctrl-x,enter,shift-left,shift-right") || true
 
 	printed_query="$(sed 1q <<<"$OUTPUT_SELECTION")"
 	expected_key="$(sed '1d;3d' <<<"$OUTPUT_SELECTION")"
@@ -295,11 +293,11 @@ fzf_issue_function() {
 			fzf_issue_comment_function
 		fi
 		;;
-	shift-up)
+	shift-left)
 		INITIAL_QUERY=""
 		fzf_search_function
 		;;
-	shift-down)
+	shift-right)
 		INITIAL_QUERY=""
 		fzf_pr_function
 		;;
@@ -319,7 +317,6 @@ ${WHITE_BOLD}Hotkeys${COLOR_RESET}
   ${GREEN_NORMAL}ctrl+n   ${COLOR_RESET}  New Issue
   ${GREEN_NORMAL}ctrl+t   ${COLOR_RESET}  React with $(_emoji_from_name "$REACTION_EMOJI") emoji
   ${GREEN_NORMAL}ctrl+u   ${COLOR_RESET}  Undo the $(_emoji_from_name "$REACTION_EMOJI") emoji reaction
-  ${GREEN_NORMAL}ctrl+w/s ${COLOR_RESET}  Scroll the preview up/down
   ${GREEN_NORMAL}ctrl+x   ${COLOR_RESET}  Write a comment
   ${GREEN_NORMAL}ctrl+z   ${COLOR_RESET}  Delete the comment after confirmation
   ${GREEN_NORMAL}esc      ${COLOR_RESET}  Return to Issue list
@@ -438,27 +435,26 @@ ${WHITE_BOLD}Symbols${COLOR_RESET}
   -   Deletions
 
 ${WHITE_BOLD}Hotkeys${COLOR_RESET}
-  ${GREEN_NORMAL}?         ${COLOR_RESET}  Toggle help
-  ${GREEN_NORMAL}enter     ${COLOR_RESET}  See comments
-  ${GREEN_NORMAL}tab       ${COLOR_RESET}  Toggle preview
-  ${GREEN_NORMAL}shift+tab ${COLOR_RESET}  Change preview window size
-  ${GREEN_NORMAL}ctrl+a    ${COLOR_RESET}  ALL Pull Requests
-  ${GREEN_NORMAL}ctrl+b    ${COLOR_RESET}  Browser
-  ${GREEN_NORMAL}ctrl+d    ${COLOR_RESET}  Toggle diff
-  ${GREEN_NORMAL}ctrl+e    ${COLOR_RESET}  Edit a Pull Request
-  ${GREEN_NORMAL}ctrl+f    ${COLOR_RESET}  Fuzzy search
-  ${GREEN_NORMAL}ctrl+g    ${COLOR_RESET}  Merge a Pull Request
-  ${GREEN_NORMAL}ctrl+o    ${COLOR_RESET}  OPEN Pull Requests only
-  ${GREEN_NORMAL}ctrl+p    ${COLOR_RESET}  Put "involves:@me" into the search
-  ${GREEN_NORMAL}ctrl+r    ${COLOR_RESET}  Reload
-  ${GREEN_NORMAL}ctrl+t    ${COLOR_RESET}  React with $(_emoji_from_name "$REACTION_EMOJI") emoji
-  ${GREEN_NORMAL}ctrl+u    ${COLOR_RESET}  Undo the $(_emoji_from_name "$REACTION_EMOJI") emoji reaction
-  ${GREEN_NORMAL}ctrl+w/s  ${COLOR_RESET}  Scroll the preview up/down
-  ${GREEN_NORMAL}ctrl+x    ${COLOR_RESET}  Write a comment
-  ${GREEN_NORMAL}ctrl+y    ${COLOR_RESET}  Checkout
-  ${GREEN_NORMAL}shift+up  ${COLOR_RESET}  Switch to Issues
-  ${GREEN_NORMAL}shift+down${COLOR_RESET}  Switch to Workflow Runs
-  ${GREEN_NORMAL}esc       ${COLOR_RESET}  Exit
+  ${GREEN_NORMAL}?          ${COLOR_RESET}  Toggle help
+  ${GREEN_NORMAL}enter      ${COLOR_RESET}  See comments
+  ${GREEN_NORMAL}tab        ${COLOR_RESET}  Toggle preview
+  ${GREEN_NORMAL}shift+tab  ${COLOR_RESET}  Change preview window size
+  ${GREEN_NORMAL}ctrl+a     ${COLOR_RESET}  ALL Pull Requests
+  ${GREEN_NORMAL}ctrl+b     ${COLOR_RESET}  Browser
+  ${GREEN_NORMAL}ctrl+d     ${COLOR_RESET}  Toggle diff
+  ${GREEN_NORMAL}ctrl+e     ${COLOR_RESET}  Edit a Pull Request
+  ${GREEN_NORMAL}ctrl+f     ${COLOR_RESET}  Fuzzy search
+  ${GREEN_NORMAL}ctrl+g     ${COLOR_RESET}  Merge a Pull Request
+  ${GREEN_NORMAL}ctrl+o     ${COLOR_RESET}  OPEN Pull Requests only
+  ${GREEN_NORMAL}ctrl+p     ${COLOR_RESET}  Put "involves:@me" into the search
+  ${GREEN_NORMAL}ctrl+r     ${COLOR_RESET}  Reload
+  ${GREEN_NORMAL}ctrl+t     ${COLOR_RESET}  React with $(_emoji_from_name "$REACTION_EMOJI") emoji
+  ${GREEN_NORMAL}ctrl+u     ${COLOR_RESET}  Undo the $(_emoji_from_name "$REACTION_EMOJI") emoji reaction
+  ${GREEN_NORMAL}ctrl+x     ${COLOR_RESET}  Write a comment
+  ${GREEN_NORMAL}ctrl+y     ${COLOR_RESET}  Checkout
+  ${GREEN_NORMAL}shift+left ${COLOR_RESET}  Switch to Issues
+  ${GREEN_NORMAL}shift+right${COLOR_RESET}  Switch to Workflow Runs
+  ${GREEN_NORMAL}esc        ${COLOR_RESET}  Exit
 EOF
 }
 
@@ -515,7 +511,7 @@ fzf_pr_function() {
 		--bind "ctrl-r:reload-sync:(grep -q A <$SCRATCH_FILE && $GH_PR_COMMAND --raw-field filter=\"$SORTING_ORDER type:pr repo:$OWNER_REPO_NAME \"{q} || $GH_PR_COMMAND --raw-field filter=\"$SORTING_ORDER type:pr repo:$OWNER_REPO_NAME state:open \"{q}) || true" \
 		--bind "ctrl-t:execute-silent($GH_ADD_REACTION --raw-field id={1} --raw-field emoji=$REACTION_EMOJI)+reload-sync:(grep -q A <$SCRATCH_FILE && $GH_PR_COMMAND --raw-field filter=\"$SORTING_ORDER type:pr repo:$OWNER_REPO_NAME \"{q} || $GH_PR_COMMAND --raw-field filter=\"$SORTING_ORDER type:pr repo:$OWNER_REPO_NAME state:open \"{q}) || true" \
 		--bind "ctrl-u:execute-silent($GH_REMOVE_REACTION --raw-field id={1} --raw-field emoji=$REACTION_EMOJI)+reload-sync:(grep -q A <$SCRATCH_FILE && $GH_PR_COMMAND --raw-field filter=\"$SORTING_ORDER type:pr repo:$OWNER_REPO_NAME \"{q} || $GH_PR_COMMAND --raw-field filter=\"$SORTING_ORDER type:pr repo:$OWNER_REPO_NAME state:open \"{q}) || true" \
-		--expect "ctrl-e,ctrl-g,ctrl-x,ctrl-y,enter,shift-up,shift-down") || true
+		--expect "ctrl-e,ctrl-g,ctrl-x,ctrl-y,enter,shift-left,shift-right") || true
 
 	printed_query="$(sed 1q <<<"$OUTPUT_SELECTION")"
 	expected_key="$(sed '1d;3d' <<<"$OUTPUT_SELECTION")"
@@ -554,11 +550,11 @@ fzf_pr_function() {
 			fzf_pr_comment_function
 		fi
 		;;
-	shift-up)
+	shift-left)
 		INITIAL_QUERY=""
 		fzf_issue_function
 		;;
-	shift-down)
+	shift-right)
 		INITIAL_QUERY=""
 		fzf_workflow_run_function
 		;;
@@ -578,7 +574,6 @@ ${WHITE_BOLD}Hotkeys${COLOR_RESET}
   ${GREEN_NORMAL}ctrl+d   ${COLOR_RESET}  Toggle diff
   ${GREEN_NORMAL}ctrl+t   ${COLOR_RESET}  React with $(_emoji_from_name "$REACTION_EMOJI") emoji
   ${GREEN_NORMAL}ctrl+u   ${COLOR_RESET}  Undo the $(_emoji_from_name "$REACTION_EMOJI") emoji reaction
-  ${GREEN_NORMAL}ctrl+w/s ${COLOR_RESET}  Scroll the preview up/down
   ${GREEN_NORMAL}ctrl+x   ${COLOR_RESET}  Write a comment
   ${GREEN_NORMAL}esc      ${COLOR_RESET}  Return to Pull Request list
 EOF
@@ -665,20 +660,19 @@ ${WHITE_BOLD}Symbols${COLOR_RESET}
   ⌛️  Elapsed Time
 
 ${WHITE_BOLD}Hotkeys${COLOR_RESET}
-  ${GREEN_NORMAL}?        ${COLOR_RESET}  Toggle help
-  ${GREEN_NORMAL}enter    ${COLOR_RESET}  See logs, press "q" to return
-  ${GREEN_NORMAL}tab      ${COLOR_RESET}  Toggle preview
-  ${GREEN_NORMAL}shift+tab${COLOR_RESET}  Change preview window size
-  ${GREEN_NORMAL}ctrl+a   ${COLOR_RESET}  Attached artifacts are downloaded
-  ${GREEN_NORMAL}ctrl+b   ${COLOR_RESET}  Browser
-  ${GREEN_NORMAL}ctrl+d   ${COLOR_RESET}  Delete a Run
-  ${GREEN_NORMAL}ctrl+f   ${COLOR_RESET}  See failed logs
-  ${GREEN_NORMAL}ctrl+r   ${COLOR_RESET}  Start updating 👀 the list every ${UPDATE_TIME}s
-  ${GREEN_NORMAL}ctrl+u   ${COLOR_RESET}  Stop updating the list every ${UPDATE_TIME}s
-  ${GREEN_NORMAL}ctrl+w/s ${COLOR_RESET}  Scroll the preview up/down
-  ${GREEN_NORMAL}ctrl+x   ${COLOR_RESET}  Cancel a Run
-  ${GREEN_NORMAL}shift+up ${COLOR_RESET}  Switch to Pull Requests
-  ${GREEN_NORMAL}esc      ${COLOR_RESET}  Exit
+  ${GREEN_NORMAL}?         ${COLOR_RESET}  Toggle help
+  ${GREEN_NORMAL}enter     ${COLOR_RESET}  See logs, press "q" to return
+  ${GREEN_NORMAL}tab       ${COLOR_RESET}  Toggle preview
+  ${GREEN_NORMAL}shift+tab ${COLOR_RESET}  Change preview window size
+  ${GREEN_NORMAL}ctrl+a    ${COLOR_RESET}  Attached artifacts are downloaded
+  ${GREEN_NORMAL}ctrl+b    ${COLOR_RESET}  Browser
+  ${GREEN_NORMAL}ctrl+d    ${COLOR_RESET}  Delete a Run
+  ${GREEN_NORMAL}ctrl+f    ${COLOR_RESET}  See failed logs
+  ${GREEN_NORMAL}ctrl+r    ${COLOR_RESET}  Start updating 👀 the list every ${UPDATE_TIME}s
+  ${GREEN_NORMAL}ctrl+u    ${COLOR_RESET}  Stop updating the list every ${UPDATE_TIME}s
+  ${GREEN_NORMAL}ctrl+x    ${COLOR_RESET}  Cancel a Run
+  ${GREEN_NORMAL}shift+left${COLOR_RESET}  Switch to Pull Requests
+  ${GREEN_NORMAL}esc       ${COLOR_RESET}  Exit
 EOF
 }
 
@@ -701,7 +695,7 @@ fzf_workflow_run_function() {
 		--bind "ctrl-r:rebind(load)+change-prompt($INITIAL_WORKFLOW_PROMPT 👀 ${UPDATE_TIME}s > )+reload-sync:$GH_WORKFLOWS_COMMAND || true" \
 		--bind "ctrl-u:unbind(load)+change-prompt:$INITIAL_WORKFLOW_PROMPT > " \
 		--bind "ctrl-x:execute-silent(gh run cancel {1} --repo $OWNER_REPO_NAME)+reload-sync:$GH_WORKFLOWS_COMMAND || true" \
-		--expect "ctrl-f,enter,shift-up") || true
+		--expect "ctrl-f,enter,shift-left") || true
 
 	printed_query="$(sed 1q <<<"$OUTPUT_SELECTION")"
 	expected_key="$(sed '1d;3d' <<<"$OUTPUT_SELECTION")"
@@ -730,7 +724,7 @@ fzf_workflow_run_function() {
 		INITIAL_QUERY="$printed_query"
 		fzf_workflow_run_function
 		;;
-	shift-up)
+	shift-left)
 		INITIAL_QUERY=""
 		fzf_pr_function
 		;;
@@ -754,18 +748,17 @@ ${WHITE_BOLD}Symbols${COLOR_RESET}
   🏁  Primary language
 
 ${WHITE_BOLD}Hotkeys${COLOR_RESET}
-  ${GREEN_NORMAL}?         ${COLOR_RESET}  Toggle help
-  ${GREEN_NORMAL}tab       ${COLOR_RESET}  Preview README
-  ${GREEN_NORMAL}shift+tab ${COLOR_RESET}  Change preview window size
-  ${GREEN_NORMAL}ctrl+b    ${COLOR_RESET}  Browser
-  ${GREEN_NORMAL}ctrl+f    ${COLOR_RESET}  Preview release infos
-  ${GREEN_NORMAL}ctrl+r    ${COLOR_RESET}  Reload
-  ${GREEN_NORMAL}ctrl+t    ${COLOR_RESET}  Star repo
-  ${GREEN_NORMAL}ctrl+u    ${COLOR_RESET}  Unstar repo
-  ${GREEN_NORMAL}ctrl+w/s  ${COLOR_RESET}  Scroll the preview up/down
-  ${GREEN_NORMAL}shift+up  ${COLOR_RESET}  Switch to your starred repos
-  ${GREEN_NORMAL}shift+down${COLOR_RESET}  Switch to Issues
-  ${GREEN_NORMAL}esc       ${COLOR_RESET}  Exit
+  ${GREEN_NORMAL}?          ${COLOR_RESET}  Toggle help
+  ${GREEN_NORMAL}tab        ${COLOR_RESET}  Preview README
+  ${GREEN_NORMAL}shift+tab  ${COLOR_RESET}  Change preview window size
+  ${GREEN_NORMAL}ctrl+b     ${COLOR_RESET}  Browser
+  ${GREEN_NORMAL}ctrl+f     ${COLOR_RESET}  Preview release infos
+  ${GREEN_NORMAL}ctrl+r     ${COLOR_RESET}  Reload
+  ${GREEN_NORMAL}ctrl+t     ${COLOR_RESET}  Star repo
+  ${GREEN_NORMAL}ctrl+u     ${COLOR_RESET}  Unstar repo
+  ${GREEN_NORMAL}shift+left ${COLOR_RESET}  Switch to your starred repos
+  ${GREEN_NORMAL}shift+right${COLOR_RESET}  Switch to Issues
+  ${GREEN_NORMAL}esc        ${COLOR_RESET}  Exit
 EOF
 }
 
@@ -814,19 +807,19 @@ fzf_search_function() {
 		--bind "ctrl-r:reload-sync:$GH_SEARCH_COMMAND --raw-field filter={q} || true" \
 		--bind "ctrl-t:execute-silent(gh api --method PUT /user/starred/{1})+reload-sync:$GH_SEARCH_COMMAND --raw-field filter={q} --cache 0s || true" \
 		--bind "ctrl-u:execute-silent(gh api --method DELETE /user/starred/{1})+reload-sync:$GH_SEARCH_COMMAND --raw-field filter={q} --cache 0s || true" \
-		--expect "shift-up,shift-down") || true
+		--expect "shift-left,shift-right") || true
 
 	expected_key="$(sed '1d;3d' <<<"$OUTPUT_SELECTION")"
 	output_textline="$(sed '1d;2d' <<<"$OUTPUT_SELECTION" | awk '{print $1}')"
 	# reset the variable
 	OUTPUT_SELECTION=""
 	case "$expected_key" in
-	shift-up)
+	shift-left)
 		INITIAL_QUERY=""
 		USER_NAME="$(gh api graphql --cache 1h --raw-field query='{viewer{login}}' --jq '.data.viewer.login')"
 		fzf_star_function
 		;;
-	shift-down)
+	shift-right)
 		INITIAL_QUERY=""
 		OWNER_REPO_NAME=${output_textline:-"$OWNER_REPO_NAME"}
 		if [ -z "$OWNER_REPO_NAME" ]; then
@@ -855,17 +848,16 @@ ${WHITE_BOLD}Symbols${COLOR_RESET}
   🏁  Primary language
 
 ${WHITE_BOLD}Hotkeys${COLOR_RESET}
-  ${GREEN_NORMAL}?         ${COLOR_RESET}  Toggle help
-  ${GREEN_NORMAL}tab       ${COLOR_RESET}  Preview README
-  ${GREEN_NORMAL}shift+tab ${COLOR_RESET}  Change preview window size
-  ${GREEN_NORMAL}ctrl+b    ${COLOR_RESET}  Browser
-  ${GREEN_NORMAL}ctrl+r    ${COLOR_RESET}  Reload
-  ${GREEN_NORMAL}ctrl+f    ${COLOR_RESET}  Preview release infos
-  ${GREEN_NORMAL}ctrl+t    ${COLOR_RESET}  Star repo (useful for stars of another user)
-  ${GREEN_NORMAL}ctrl+u    ${COLOR_RESET}  Unstar repo
-  ${GREEN_NORMAL}ctrl+w/s  ${COLOR_RESET}  Scroll the preview up/down
-  ${GREEN_NORMAL}shift+down${COLOR_RESET}  Switch to Search
-  ${GREEN_NORMAL}esc       ${COLOR_RESET}  Exit
+  ${GREEN_NORMAL}?          ${COLOR_RESET}  Toggle help
+  ${GREEN_NORMAL}tab        ${COLOR_RESET}  Preview README
+  ${GREEN_NORMAL}shift+tab  ${COLOR_RESET}  Change preview window size
+  ${GREEN_NORMAL}ctrl+b     ${COLOR_RESET}  Browser
+  ${GREEN_NORMAL}ctrl+r     ${COLOR_RESET}  Reload
+  ${GREEN_NORMAL}ctrl+f     ${COLOR_RESET}  Preview release infos
+  ${GREEN_NORMAL}ctrl+t     ${COLOR_RESET}  Star repo (useful for stars of another user)
+  ${GREEN_NORMAL}ctrl+u     ${COLOR_RESET}  Unstar repo
+  ${GREEN_NORMAL}shift+right${COLOR_RESET}  Switch to Search
+  ${GREEN_NORMAL}esc        ${COLOR_RESET}  Exit
 EOF
 }
 
@@ -909,14 +901,14 @@ fzf_star_function() {
 		--bind "ctrl-r:reload-sync:$GH_STAR_COMMAND --raw-field USER_NAME=$USER_NAME --cache 0s" \
 		--bind "ctrl-t:execute-silent(gh api --method PUT user/starred/{1})+reload-sync:$GH_STAR_COMMAND --raw-field USER_NAME=$USER_NAME --cache 0s" \
 		--bind "ctrl-u:execute-silent(gh api --method DELETE user/starred/{1})+reload-sync:$GH_STAR_COMMAND --raw-field USER_NAME=$USER_NAME --cache 0s" \
-		--expect "shift-down") || true
+		--expect "shift-right") || true
 
 	expected_key="$(sed '1d;3d' <<<"$OUTPUT_SELECTION")"
 	output_textline="$(sed '1d;2d' <<<"$OUTPUT_SELECTION" | awk '{print $1}')"
 	# reset the variable
 	OUTPUT_SELECTION=""
 	case "$expected_key" in
-	shift-down)
+	shift-right)
 		INITIAL_QUERY=""
 		OWNER_REPO_NAME="$output_textline"
 		fzf_search_function
