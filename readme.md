@@ -52,32 +52,30 @@ gh look [Commands] [Flags] [Search term]
 %% GitHub seems to not display fontawesome icons
 %% https://fontawesome.com/search
 %% https://mermaid.js.org/syntax/flowchart.html#basic-support-for-fontawesome
-flowchart RL
 
-    Help([fa:fa-circle-question Help Preview])
-    Stars & Search & Issues & PullRequests  & Workflows -->|?| Help
-    Search([fa:fa-magnifying-glass Search]) -->|shift+left| Stars([fa:fa-user Stars])
-    Stars-->|shift+right| Search
-    Search -->|shift+right| Issues
-    Issues -->|shift+left| Search
-
-    subgraph Issue_and_PR[fa:fa-nonsenseValue]
-        Issues([fa:fa-circle-dot Issues]) --> |shift+right|PullRequests([fa:fa-code-pull-request Pull Requests])
-        PullRequests --> |shift+left| Issues
+flowchart LR
+    subgraph Helper_Keys[ ]
+        Help([fa:fa-circle-question ? ᐧ Help])
+        ESC([fa:fa-arrow-right-from-bracket esc ᐧ Quit])
+    end
+    subgraph Overview[ ]
+        direction LR
+        Search([fa:fa-magnifying-glass Search]) -->|shift+left| Stars([fa:fa-user Stars])
+        Stars-->|shift+right| Search
+        Search -->|shift+right| Issues([fa:fa-circle-dot Issues])
+        Issues -->|shift+left| Search
+        subgraph Issue_and_PR[ ]
+            Issues --> |shift+right|PullRequests([fa:fa-code-pull-request Pull Requests])
+            PullRequests --> |shift+left| Issues
+        end
+        Issue_and_PR  -->|enter| Comments([fa:fa-comments Comments])  -->|esc| Issue_and_PR
+        Workflows([fa:fa-circle-play Workflow Runs]) -->|shift+left| PullRequests
+        PullRequests -->|shift+right| Workflows
     end
 
-    subgraph Workflow[fa:fa-nonsenseValue]
-        Workflows([fa:fa-circle-play Workflow Runs])
-    end
-
-    Workflows -->|shift+left| PullRequests
-    PullRequests -->|shift+right| Workflows
-
-    Comments([fa:fa-comments Comments])  <-- Enter/Esc --> Issue_and_PR
-
-
-linkStyle default stroke-width:0.8px
-style Workflow fill:transparent,stroke-width:0px
+linkStyle default stroke-width:0.4px
+classDef Subgraph_Empty_Style  fill:transparent,stroke-width:0px
+class Overview,Helper_Keys Subgraph_Empty_Style
 style Issue_and_PR fill:transparent,stroke-width:0.5px,stroke:#5b387c90
 ```
 
