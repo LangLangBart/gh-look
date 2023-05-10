@@ -44,9 +44,13 @@ UPDATE_TIME=10
 EXCLUDE_PULL_REQUESTS=true
 NUMBER_WORKFLOW_RUN_LIST=20
 # colors
-COLOR_RESET=$'\e[0m'
-GREEN_NORMAL=$'\e[0;92m'
-WHITE_BOLD=$'\e[1;97m'
+COLOR_RESET=$(tput sgr0)
+RED_NORMAL=$(tput setaf 1)
+GREEN_NORMAL=$(tput setaf 2)
+WHITE_BOLD=$(
+	tput bold
+	tput setaf 7
+)
 
 # emojis
 REACTION_EMOJI="THUMBS_UP"
@@ -88,12 +92,30 @@ _fzf_basic_options() {
 SPIN_FORM=(▰▱▱▱▱▱▱ ▰▰▱▱▱▱▱ ▰▰▰▱▱▱▱ ▰▰▰▰▱▱▱ ▰▰▰▰▰▱▱ ▰▰▰▰▰▰▱ ▰▰▰▰▰▰▰)
 # Restarting fzf immediately may not show the newly created changes. Wait at least a second or two.
 _load_indicator() {
-	printf "\n\n%s\n" "${1:-"Restarting ..."}"
+	# Save the current terminal state
+	tput smcup
+	# Save cursor position
+	tput sc
 	for i in "${SPIN_FORM[@]}"; do
-		echo -ne "\r$i"
+		#  Restore cursor position to the saved position
+		tput rc
+		printf "%s %s" "${1:-"Restarting"}" "$i"
 		sleep "${2:-"0.2"}"
 	done
-	echo
+	# Restore the terminal state
+	tput rmcup
+}
+
+# confirm user decisions and return an exit status based on the user's response
+_user_confirm() {
+	local confirm
+	tput smcup
+	printf "%s\n\n${WHITE_BOLD}CONFIRM${COLOR_RESET} %s (${GREEN_NORMAL}y${COLOR_RESET}/${RED_NORMAL}n${COLOR_RESET})?\n> " "${1:-"<Missing Context Message >"}" "${2:-"<Missing Confirmation Context >"}"
+	stty raw -echo
+	confirm=$(dd bs=1 count=1 2>/dev/null)
+	stty sane
+	tput rmcup
+	[[ "$confirm" = "y" ]] && return 0 || return 1
 }
 
 # return the emoji from its corresponding string name
@@ -161,7 +183,7 @@ ${WHITE_BOLD}Hotkeys${COLOR_RESET}
   ${GREEN_NORMAL}ctrl+b     ${COLOR_RESET}  Browser
   ${GREEN_NORMAL}ctrl+e     ${COLOR_RESET}  Edit an Issue
   ${GREEN_NORMAL}ctrl+f     ${COLOR_RESET}  Fuzzy search
-  ${GREEN_NORMAL}ctrl+g     ${COLOR_RESET}  Close Issue after confirmation
+  ${GREEN_NORMAL}ctrl+g     ${COLOR_RESET}  Close/Reopen Issue after confirmation
   ${GREEN_NORMAL}ctrl+n     ${COLOR_RESET}  New Issue
   ${GREEN_NORMAL}ctrl+o     ${COLOR_RESET}  OPEN Issues only
   ${GREEN_NORMAL}ctrl+p     ${COLOR_RESET}  Put "involves:@me" into the search
@@ -232,51 +254,77 @@ fzf_issue_function() {
 	printed_query="$(sed 1q <<<"$OUTPUT_SELECTION")"
 	expected_key="$(sed '1d;3d' <<<"$OUTPUT_SELECTION")"
 	TICKET_NUMBER="$(sed '1d;2d' <<<"$OUTPUT_SELECTION" | awk '{print $2}' | tr -d "#")"
-	output_textline="$(sed '1d;2d' <<<"$OUTPUT_SELECTION" | awk '{$1=""; print $0}')"
+	output_textline="$(sed '1d;2d' <<<"$OUTPUT_SELECTION" | awk '{$1=""; sub("^ *",""); print $0}')"
+	output_id="$(sed '1d;2d' <<<"$OUTPUT_SELECTION" | awk '{print $1}')"
 	number_comments="$(sed '1d;2d' <<<"$OUTPUT_SELECTION" | awk '{print $6,$7}' | grep -Eo '[0-9]+' || true)"
 	# reset the variable
 	OUTPUT_SELECTION=""
 	case "$expected_key" in
 	ctrl-e)
-		gh issue edit "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME"
+		gh issue edit "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME" || true
 		_load_indicator
 		INITIAL_QUERY="$printed_query"
 		fzf_issue_function 0s
 		;;
 	ctrl-g)
-		printf "\n%s\n\nCONFIRM CLOSURE (y/n) " "$output_textline"
-		stty raw -echo
-		CONFIRM=$(dd bs=1 count=1 2>/dev/null)
-		stty sane
-		if [[ "$CONFIRM" = "y" ]]; then
-			printf "\n\nDo you want to add a comment? (y/n) "
-			stty raw -echo
-			CONFIRM=$(dd bs=1 count=1 2>/dev/null)
-			stty sane
-			if [[ "$CONFIRM" = "y" ]]; then
-				read -rp "Enter a comment: " message
-				gh issue close "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME" --comment "$message" 2>/dev/null && printf "\n🟢 Success.... Issue closed\n" || printf "\n🛑 Missing permissions to close this Issue!\n"
+		check_info_api=()
+		# "[0]" is the ticket closed ?
+		# "[1]" can the viewer close it ?
+		while IFS='' read -r line; do check_info_api+=("$line"); done < <(
+			gh api graphql --raw-field id="$output_id" \
+				--raw-field query=$'query ($id: ID!) { node(id: $id) { ... on Issue { closed viewerCanClose }}}' \
+				--jq '.data.node | .closed,.viewerCanClose'
+		)
+		if [ "${check_info_api[0]}" = "true" ]; then
+			if [ "${check_info_api[1]}" = "true" ]; then
+				if _user_confirm "$output_textline" "reopen this issue"; then
+					if _user_confirm "$output_textline" "do you want to add a comment"; then
+						tput sc
+						echo -en "${WHITE_BOLD}Enter a comment!${COLOR_RESET}\n> "
+						read -r message
+						tput rc && tput el
+						gh issue reopen "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME" --comment "$message" &>/dev/null
+					else
+						gh issue reopen "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME" &>/dev/null
+					fi
+					_load_indicator $'🟢 Success.... Issue reopened!\nRestarting'
+				else
+					_load_indicator $'Discarding... Issue was not reopened!\nRestarting'
+				fi
 			else
-				gh issue close "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME" 2>/dev/null && printf "\n🟢 Success.... Issue closed\n" || printf "\n🛑 Missing permissions to close this Issue!\n"
+				_load_indicator $'🛑 Missing permissions to reopen this Issue!\nRestarting'
 			fi
-			_load_indicator
-			INITIAL_QUERY="$printed_query"
-			fzf_issue_function 0s
 		else
-			printf "\nDiscarding... Issue was not closed!"
-			_load_indicator
-			INITIAL_QUERY="$printed_query"
-			fzf_issue_function
+			if [ "${check_info_api[1]}" = "true" ]; then
+				if _user_confirm "$output_textline" "close this issue"; then
+					if _user_confirm "$output_textline" "do you want to add a comment"; then
+						tput sc
+						echo -en "${WHITE_BOLD}Enter a comment!${COLOR_RESET}\n> "
+						read -r message
+						tput rc && tput el
+						gh issue close "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME" --comment "$message" &>/dev/null
+					else
+						gh issue close "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME" &>/dev/null
+					fi
+					_load_indicator $'🟢 Success.... Issue closed!\nRestarting'
+				else
+					_load_indicator $'Discarding... Issue was not closed!\nRestarting'
+				fi
+			else
+				_load_indicator $'🛑 Missing permissions to close this Issue!\nRestarting'
+			fi
 		fi
+		INITIAL_QUERY="$printed_query"
+		fzf_issue_function 0s
 		;;
 	ctrl-n)
-		gh issue create --repo "$OWNER_REPO_NAME"
+		gh issue create --repo "$OWNER_REPO_NAME" || true
 		_load_indicator
 		INITIAL_QUERY="$printed_query"
 		fzf_issue_function 0s
 		;;
 	ctrl-x)
-		gh issue comment "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME"
+		gh issue comment "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME" || true
 		_load_indicator
 		INITIAL_QUERY="$printed_query"
 		fzf_issue_function 0s
@@ -287,7 +335,7 @@ fzf_issue_function() {
 			# adding U+00a0 (non-breaking space) for isues with zero comments and commentable
 			# without it an issue with 0 comments and >1 reaction would trick the if check
 			# sometimes the "age" column can only be 2 words instead of 3, e.g. "just now", that is why $6 and $7
-			_load_indicator $'No comments on this issue\nRestarting ...'
+			_load_indicator $'No comments on this issue\nRestarting'
 			fzf_issue_function 0s
 		else
 			fzf_issue_comment_function
@@ -372,38 +420,42 @@ fzf_issue_comment_function() {
 
 	printed_query="$(sed 1q <<<"$OUTPUT_SELECTION")"
 	expected_key="$(sed '1d;3d' <<<"$OUTPUT_SELECTION")"
-	output_textline="$(sed '1d;2d' <<<"$OUTPUT_SELECTION" | awk '{$1=""; print $0}')"
+	output_textline="$(sed '1d;2d' <<<"$OUTPUT_SELECTION" | awk '{$1=""; $2=""; sub("^ *",""); print $0}')"
+	output_id="$(sed '1d;2d' <<<"$OUTPUT_SELECTION" | awk '{print $1}')"
 	# reset the variable
 	OUTPUT_SELECTION=""
 	case "$expected_key" in
 	ctrl-n)
-		gh issue create --repo "$OWNER_REPO_NAME"
+		gh issue create --repo "$OWNER_REPO_NAME" || true
 		_load_indicator
 		INITIAL_QUERY="$printed_query"
 		fzf_issue_function 0s
 		;;
 	ctrl-x)
-		gh issue comment "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME"
+		gh issue comment "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME" || true
 		_load_indicator
 		INITIAL_COMMENT_QUERY="$printed_query"
 		fzf_issue_comment_function 0s
 		;;
 	ctrl-z)
-		printf "\n%s\n\nCONFIRM DELETION (y/n) " "$output_textline"
-		stty raw -echo
-		CONFIRM=$(dd bs=1 count=1 2>/dev/null)
-		stty sane
-		if [[ "$CONFIRM" = "y" ]]; then
-			gh api graphql --silent --raw-field id="$(sed 1d <<<"${OUTPUT_SELECTION}" | awk '{print $1}')" --raw-field query=$'mutation($id: ID!) { deleteIssueComment(input: {id: $id}) { clientMutationId }}' 2>/dev/null && printf "\n🟢 Success.... comment deleted\n" || printf "\n🛑 Missing permissions to delete this comment!\n"
-			_load_indicator
-			INITIAL_QUERY="$printed_query"
-			fzf_issue_function 0s
+		check_viewer_permission=$(
+			gh api graphql --raw-field id="$output_id" \
+				--raw-field query=$'query ($id: ID!) { node(id: $id) { ... on IssueComment { viewerCanDelete }}}' \
+				--jq '.data.node.viewerCanDelete'
+		)
+		if [ "$check_viewer_permission" = "true" ]; then
+			if _user_confirm "$output_textline" "deletion of this comment"; then
+				gh api graphql --silent --raw-field id="$output_id" \
+					--raw-field query=$'mutation($id: ID!) { deleteIssueComment(input: {id: $id}) { clientMutationId }}'
+				_load_indicator $'🟢 Success.... comment deleted\nRestarting'
+			else
+				_load_indicator $'Discarding... comment was not deleted!\nRestarting'
+			fi
 		else
-			printf "\nDiscarding... comment was not deleted!"
-			_load_indicator
-			INITIAL_COMMENT_QUERY="$printed_query"
-			fzf_issue_comment_function
+			_load_indicator $'🛑 Missing permissions to delete this comment!\nRestarting'
 		fi
+		INITIAL_COMMENT_QUERY="$printed_query"
+		fzf_issue_comment_function 0s
 		;;
 	esc)
 		INITIAL_COMMENT_QUERY=""
@@ -516,13 +568,12 @@ fzf_pr_function() {
 	printed_query="$(sed 1q <<<"$OUTPUT_SELECTION")"
 	expected_key="$(sed '1d;3d' <<<"$OUTPUT_SELECTION")"
 	TICKET_NUMBER="$(sed '1d;2d' <<<"$OUTPUT_SELECTION" | awk '{print $2}' | tr -d "#")"
-	output_textline="$(sed '1d;2d' <<<"$OUTPUT_SELECTION" | awk '{$1=""; print $0}')"
 	number_comments="$(sed '1d;2d' <<<"$OUTPUT_SELECTION" | awk '{print $6,$7}' | grep -Eo '[0-9]+' || true)"
 	# reset the variable
 	OUTPUT_SELECTION=""
 	case "$expected_key" in
 	ctrl-e)
-		gh pr edit "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME"
+		gh pr edit "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME" || true
 		_load_indicator
 		INITIAL_QUERY="$printed_query"
 		fzf_pr_function 0s
@@ -532,7 +583,7 @@ fzf_pr_function() {
 		exit 0
 		;;
 	ctrl-x)
-		gh pr comment "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME"
+		gh pr comment "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME" || true
 		_load_indicator
 		INITIAL_QUERY="$printed_query"
 		fzf_pr_function 0s
@@ -544,7 +595,7 @@ fzf_pr_function() {
 	enter)
 		INITIAL_QUERY="$printed_query"
 		if [ -z "$number_comments" ]; then
-			_load_indicator $'No comments on this Pull Request\nRestarting ...'
+			_load_indicator $'No comments on this Pull Request\nRestarting'
 			fzf_pr_function
 		else
 			fzf_pr_comment_function
@@ -627,7 +678,7 @@ fzf_pr_comment_function() {
 	OUTPUT_SELECTION=""
 	case "$expected_key" in
 	ctrl-x)
-		gh issue comment "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME"
+		gh pr comment "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME" || true
 		_load_indicator
 		INITIAL_COMMENT_QUERY="$printed_query"
 		fzf_pr_comment_function 0s
@@ -708,7 +759,7 @@ fzf_workflow_run_function() {
 		if grep -Eq 'in_progress|queued' <<<"$output_status"; then
 			gh run watch --repo "$OWNER_REPO_NAME"
 		elif ! gh run view --log "$output_id" --repo "$OWNER_REPO_NAME" &>/dev/null; then
-			_load_indicator $'No logs found\nRestarting ...'
+			_load_indicator $'No logs found\nRestarting'
 		else
 			GH_PAGER="$LANG_BAT_SETUP log" gh run view --log "$output_id" --repo "$OWNER_REPO_NAME"
 		fi
@@ -717,7 +768,7 @@ fzf_workflow_run_function() {
 		;;
 	ctrl-f)
 		if ! gh run view --log-failed "$output_id" --repo "$OWNER_REPO_NAME" &>/dev/null; then
-			_load_indicator $'No failed logs found\nRestarting ...'
+			_load_indicator $'No failed logs found\nRestarting'
 		else
 			GH_PAGER="$LANG_BAT_SETUP log" gh run view --log-failed "$output_id" --repo "$OWNER_REPO_NAME"
 		fi
