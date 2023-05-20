@@ -47,6 +47,8 @@ NUMBER_WORKFLOW_RUN_LIST=20
 COLOR_RESET=$(tput sgr0)
 RED_NORMAL=$(tput setaf 1)
 GREEN_NORMAL=$(tput setaf 2)
+YELLOW_NORMAL=$(tput setaf 3)
+BLUE_NORMAL=$(tput setaf 4)
 WHITE_BOLD=$(
 	tput bold
 	tput setaf 7
@@ -62,7 +64,7 @@ GH_REMOVE_REACTION=$'gh api graphql --silent --raw-field query=\'mutation($id: I
 
 _die_with_octocat() {
 	GH_PAGER="cat" gh api octocat
-	printf "\e[1;91m[%s] < ERROR > %s\e[0m" "$(date +"%H:%M:%S")" "${1:?"No error message has been defined."}"
+	printf "%s[%s] < ERROR > %s%s" "$RED_NORMAL" "$(date +"%H:%M:%S")" "${1:?"No error message has been defined."}" "$COLOR_RESET"
 	printf "\n%s\n" "${2:-}"
 	exit 1
 }
@@ -232,7 +234,7 @@ fzf_issue_function() {
 			{{- tablerow .id (printf "#%.0f" .number | color $stateIssueColor) ($author | color $authorColor) (timeago .updatedAt) ($commentCount | color $commentColor) ($emojiCount | color $emojiColor) .title -}}
 		{{- end -}}\''
 
-	INITIAL_ISSUE_PROMPT=$(grep -q A <"$SCRATCH_FILE" && printf "Issues ◉ [%s] > " "$OWNER_REPO_NAME" || printf "\e[1;92mOPEN Issues ◉ [%s] > " "$OWNER_REPO_NAME")
+	INITIAL_ISSUE_PROMPT=$(grep -q A <"$SCRATCH_FILE" && echo "Issues ◉ [$OWNER_REPO_NAME] > " || echo "${GREEN_NORMAL}OPEN Issues ◉ [$OWNER_REPO_NAME] > ")
 
 	OUTPUT_SELECTION=$(FZF_DEFAULT_COMMAND="(grep -q A <$SCRATCH_FILE && $GH_ISSUE_COMMAND --cache ${1:-$CACHE_TIME} --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME $INITIAL_QUERY \" || $GH_ISSUE_COMMAND --cache ${1:-$CACHE_TIME} --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME state:open $INITIAL_QUERY \") || true" \
 		_fzf_basic_options --disabled --header-lines 3 --with-nth 2.. \
@@ -243,8 +245,8 @@ fzf_issue_function() {
 		--bind "tab:toggle-preview+change-preview:sleep 0.35; $GH_ISSUE_PREVIEW | $LANG_BAT_SETUP md" \
 		--bind "ctrl-a:rebind(change)+change-prompt(Issues ◉ [$OWNER_REPO_NAME] > )+disable-search+execute-silent(echo A >$SCRATCH_FILE)+reload-sync:$GH_ISSUE_COMMAND --cache $CACHE_TIME --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME \"{q} || true" \
 		--bind "ctrl-b:execute-silent(gh issue view {2} --web --repo $OWNER_REPO_NAME)" \
-		--bind $'ctrl-f:unbind(change)+enable-search+clear-query+change-prompt(\e[1;93mFUZZY SEARCH'" [$OWNER_REPO_NAME] > )" \
-		--bind $'ctrl-o:rebind(change)+change-prompt(\e[1;92mOPEN Issues ◉'" [$OWNER_REPO_NAME] > )+disable-search+execute-silent(echo B >$SCRATCH_FILE)+reload-sync:$GH_ISSUE_COMMAND --cache $CACHE_TIME --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME state:open \"{q} || true" \
+		--bind "ctrl-f:unbind(change)+enable-search+clear-query+change-prompt(${RED_NORMAL}FUZZY SEARCH [$OWNER_REPO_NAME] > )" \
+		--bind "ctrl-o:rebind(change)+change-prompt(${GREEN_NORMAL}OPEN Issues ◉ [$OWNER_REPO_NAME] > )+disable-search+execute-silent(echo B >$SCRATCH_FILE)+reload-sync:$GH_ISSUE_COMMAND --cache $CACHE_TIME --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME state:open \"{q} || true" \
 		--bind "ctrl-p:put(involves:@me)" \
 		--bind "ctrl-r:reload-sync:(grep -q A <$SCRATCH_FILE && $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME \"{q} || $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME state:open \"{q}) || true" \
 		--bind "ctrl-t:execute-silent($GH_ADD_REACTION --raw-field id={1} --raw-field emoji=$REACTION_EMOJI)+reload-sync:(grep -q A <$SCRATCH_FILE && $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME \"{q} || $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME state:open \"{q}) || true" \
@@ -409,7 +411,7 @@ fzf_issue_comment_function() {
 
 	OUTPUT_SELECTION=$(FZF_DEFAULT_COMMAND="$GH_ISSUE_COMMENTS_COMMAND --cache ${1:-$CACHE_TIME} --raw-field owner=${OWNER_REPO_NAME%/*} --raw-field name=${OWNER_REPO_NAME#*/} --field number=$TICKET_NUMBER" \
 		_fzf_basic_options --header-lines 6 --with-nth 3.. \
-		--query "$INITIAL_COMMENT_QUERY" --prompt $'\e[1;94m'"Issue 💬 [$OWNER_REPO_NAME] > " \
+		--query "$INITIAL_COMMENT_QUERY" --prompt "${BLUE_NORMAL}Issue 💬 [$OWNER_REPO_NAME] > " \
 		--preview-window "+5:~5" --preview "$GH_COMMENTS_PREVIEW | $LANG_BAT_SETUP md" \
 		--bind "?:toggle-preview+change-preview:echo '$(help_issue_comment_function)'" \
 		--bind "tab:toggle-preview+change-preview:$GH_COMMENTS_PREVIEW | $LANG_BAT_SETUP md" \
@@ -545,7 +547,7 @@ fzf_pr_function() {
 			{{- tablerow .id (printf "#%.0f" .number | color $statePullRequestColor) ($author | color $authorColor) (timeago .updatedAt) ($commentCount | color $commentColor) ($emojiCount | color $emojiColor) (printf "+%.0f" .additions | color "green") (printf "-%.0f" .deletions | color "red") .title -}}
 		{{- end -}}\''
 
-	INITIAL_PR_PROMPT=$(grep -q A <"$SCRATCH_FILE" && printf "Pull Requests  [%s] > " "$OWNER_REPO_NAME" || printf "\e[1;92mOPEN Pull Requests  [%s] > " "$OWNER_REPO_NAME")
+	INITIAL_PR_PROMPT=$(grep -q A <"$SCRATCH_FILE" && echo "Pull Requests  [$OWNER_REPO_NAME] > " || echo "${GREEN_NORMAL}OPEN Pull Requests  [$OWNER_REPO_NAME] > ")
 
 	OUTPUT_SELECTION=$(FZF_DEFAULT_COMMAND="(grep -q A <$SCRATCH_FILE && $GH_PR_COMMAND --cache ${1:-$CACHE_TIME} --raw-field filter=\"$SORTING_ORDER type:pr repo:$OWNER_REPO_NAME $INITIAL_QUERY \" || $GH_PR_COMMAND --cache ${1:-$CACHE_TIME} --raw-field filter=\"$SORTING_ORDER type:pr repo:$OWNER_REPO_NAME state:open $INITIAL_QUERY \") || true" \
 		_fzf_basic_options --disabled --header-lines 3 --with-nth 2.. \
@@ -556,9 +558,9 @@ fzf_pr_function() {
 		--bind "tab:toggle-preview+change-preview:sleep 0.35; $GH_PR_PREVIEW | $LANG_BAT_SETUP md" \
 		--bind "ctrl-a:rebind(change)+change-prompt(Pull Requests  [$OWNER_REPO_NAME] > )+disable-search+execute-silent(echo A >$SCRATCH_FILE)+reload-sync:$GH_PR_COMMAND --cache $CACHE_TIME --raw-field filter=\"$SORTING_ORDER type:pr repo:$OWNER_REPO_NAME \"{q} || true" \
 		--bind "ctrl-b:execute-silent(gh pr view {2} --web --repo $OWNER_REPO_NAME)" \
-		--bind $'ctrl-f:unbind(change)+enable-search+clear-query+change-prompt(\e[1;93mFUZZY SEARCH'" [$OWNER_REPO_NAME] > )" \
+		--bind "ctrl-f:unbind(change)+enable-search+clear-query+change-prompt(${RED_NORMAL}FUZZY SEARCH [$OWNER_REPO_NAME] > )" \
 		--bind "ctrl-d:toggle-preview+change-preview(gh pr diff {2} --repo $OWNER_REPO_NAME"$' | if type -p delta >/dev/null; then delta --width ${FZF_PREVIEW_COLUMNS:-$COLUMNS}; else cat; fi)' \
-		--bind $'ctrl-o:rebind(change)+change-prompt(\e[1;92mOPEN Pull Requests '" [$OWNER_REPO_NAME] > )+disable-search+execute-silent(echo B >$SCRATCH_FILE)+reload-sync:$GH_PR_COMMAND --cache $CACHE_TIME --raw-field filter=\"$SORTING_ORDER type:pr repo:$OWNER_REPO_NAME state:open \"{q} || true" \
+		--bind "ctrl-o:rebind(change)+change-prompt(${GREEN_NORMAL}OPEN Pull Requests  [$OWNER_REPO_NAME] > )+disable-search+execute-silent(echo B >$SCRATCH_FILE)+reload-sync:$GH_PR_COMMAND --cache $CACHE_TIME --raw-field filter=\"$SORTING_ORDER type:pr repo:$OWNER_REPO_NAME state:open \"{q} || true" \
 		--bind "ctrl-p:put(involves:@me)" \
 		--bind "ctrl-r:reload-sync:(grep -q A <$SCRATCH_FILE && $GH_PR_COMMAND --raw-field filter=\"$SORTING_ORDER type:pr repo:$OWNER_REPO_NAME \"{q} || $GH_PR_COMMAND --raw-field filter=\"$SORTING_ORDER type:pr repo:$OWNER_REPO_NAME state:open \"{q}) || true" \
 		--bind "ctrl-t:execute-silent($GH_ADD_REACTION --raw-field id={1} --raw-field emoji=$REACTION_EMOJI)+reload-sync:(grep -q A <$SCRATCH_FILE && $GH_PR_COMMAND --raw-field filter=\"$SORTING_ORDER type:pr repo:$OWNER_REPO_NAME \"{q} || $GH_PR_COMMAND --raw-field filter=\"$SORTING_ORDER type:pr repo:$OWNER_REPO_NAME state:open \"{q}) || true" \
@@ -662,7 +664,7 @@ fzf_pr_comment_function() {
 
 	OUTPUT_SELECTION=$(FZF_DEFAULT_COMMAND="$GH_PR_COMMENTS_COMMAND --cache ${1:-$CACHE_TIME} --raw-field owner=${OWNER_REPO_NAME%/*} --raw-field name=${OWNER_REPO_NAME#*/} --field number=$TICKET_NUMBER" \
 		_fzf_basic_options --header-lines 6 --with-nth 3.. \
-		--prompt $'\e[1;94m'"Pull Request 💬 [$OWNER_REPO_NAME] > " \
+		--query "$INITIAL_COMMENT_QUERY" --prompt "${BLUE_NORMAL}Pull Request 💬 [$OWNER_REPO_NAME] > " \
 		--preview-window "+5:~5" --preview "$GH_COMMENTS_PREVIEW | $LANG_BAT_SETUP md" \
 		--bind "?:toggle-preview+change-preview:echo '$(help_pr_comment_function)'" \
 		--bind "tab:toggle-preview+change-preview:$GH_COMMENTS_PREVIEW | $LANG_BAT_SETUP md" \
@@ -699,10 +701,10 @@ ${WHITE_BOLD}Usage${COLOR_RESET}
 ${WHITE_BOLD}Flags${COLOR_RESET}
   ${GREEN_NORMAL}<none>${COLOR_RESET}  List Workflow Runs from current directory
   ${GREEN_NORMAL}-h    ${COLOR_RESET}  Help
-  ${GREEN_NORMAL}-n    ${COLOR_RESET}  Number of listed Runs  (default: 10, max: 100)
+  ${GREEN_NORMAL}-n    ${COLOR_RESET}  Number of listed Runs (default: 10, max: 100)
+  ${GREEN_NORMAL}-o    ${COLOR_RESET}  Operate in watch mode 👀 update the list every ${UPDATE_TIME}s (default: 10)
   ${GREEN_NORMAL}-p    ${COLOR_RESET}  Pull Requests are included in the list (default: not included)
   ${GREEN_NORMAL}-r    ${COLOR_RESET}  Specify a repository (form: OWNER/REPO)
-  ${GREEN_NORMAL}-u    ${COLOR_RESET}  Update the list every ${UPDATE_TIME} seconds (default: 10)
   ${GREEN_NORMAL}-w    ${COLOR_RESET}  Display the preview window upon start (default: hidden)
 
 ${WHITE_BOLD}Symbols${COLOR_RESET}
@@ -715,12 +717,12 @@ ${WHITE_BOLD}Hotkeys${COLOR_RESET}
   ${GREEN_NORMAL}enter     ${COLOR_RESET}  See logs, press "q" to return
   ${GREEN_NORMAL}tab       ${COLOR_RESET}  Toggle preview
   ${GREEN_NORMAL}shift+tab ${COLOR_RESET}  Change preview window size
-  ${GREEN_NORMAL}ctrl+a    ${COLOR_RESET}  Attached artifacts are downloaded
+  ${GREEN_NORMAL}ctrl+a    ${COLOR_RESET}  Abort watch mode
   ${GREEN_NORMAL}ctrl+b    ${COLOR_RESET}  Browser
-  ${GREEN_NORMAL}ctrl+d    ${COLOR_RESET}  Delete a Run
+  ${GREEN_NORMAL}ctrl+d    ${COLOR_RESET}  Download attached artifacts
+  ${GREEN_NORMAL}ctrl+k    ${COLOR_RESET}  Delete a Run
   ${GREEN_NORMAL}ctrl+f    ${COLOR_RESET}  See failed logs
-  ${GREEN_NORMAL}ctrl+r    ${COLOR_RESET}  Start updating 👀 the list every ${UPDATE_TIME}s
-  ${GREEN_NORMAL}ctrl+u    ${COLOR_RESET}  Stop updating the list every ${UPDATE_TIME}s
+  ${GREEN_NORMAL}ctrl+o    ${COLOR_RESET}  Operate in watch mode 👀 update the list every ${UPDATE_TIME}s
   ${GREEN_NORMAL}ctrl+x    ${COLOR_RESET}  Cancel a Run
   ${GREEN_NORMAL}shift+left${COLOR_RESET}  Switch to Pull Requests
   ${GREEN_NORMAL}esc       ${COLOR_RESET}  Exit
@@ -734,17 +736,17 @@ fzf_workflow_run_function() {
 	OUTPUT_SELECTION=$(FZF_DEFAULT_COMMAND="$GH_WORKFLOWS_COMMAND" \
 		_fzf_basic_options --header-lines 1 --with-nth 4.. \
 		--header $'\n? Help · esc Quit\n\n' \
-		--prompt "$INITIAL_WORKFLOW_PROMPT 👀 ${UPDATE_TIME}s > " \
+		--prompt "${GREEN_NORMAL}$INITIAL_WORKFLOW_PROMPT 👀 ${UPDATE_TIME}s > " \
 		--query "$INITIAL_QUERY" \
 		--preview "gh run view {1} --repo $OWNER_REPO_NAME" \
 		--bind "tab:toggle-preview+change-preview:gh run view {1} --repo $OWNER_REPO_NAME" \
 		--bind "?:toggle-preview+change-preview:echo '$(help_workflow_run_function)'" \
 		--bind "load:reload-sync:sleep $UPDATE_TIME;$GH_WORKFLOWS_COMMAND || true" \
-		--bind "ctrl-a:become(gh run download {1} --repo $OWNER_REPO_NAME)+reload-sync:$GH_WORKFLOWS_COMMAND || true" \
+		--bind "ctrl-a:unbind(load)+change-prompt($INITIAL_WORKFLOW_PROMPT > )+reload-sync:$GH_WORKFLOWS_COMMAND || true" \
 		--bind "ctrl-b:execute-silent:open {2}" \
-		--bind "ctrl-d:execute-silent(gh run delete {1} --repo $OWNER_REPO_NAME)+reload-sync:$GH_WORKFLOWS_COMMAND || true" \
-		--bind "ctrl-r:rebind(load)+change-prompt($INITIAL_WORKFLOW_PROMPT 👀 ${UPDATE_TIME}s > )+reload-sync:$GH_WORKFLOWS_COMMAND || true" \
-		--bind "ctrl-u:unbind(load)+change-prompt:$INITIAL_WORKFLOW_PROMPT > " \
+		--bind "ctrl-d:become(gh run download {1} --repo $OWNER_REPO_NAME)+reload-sync:$GH_WORKFLOWS_COMMAND || true" \
+		--bind "ctrl-k:execute-silent(gh run delete {1} --repo $OWNER_REPO_NAME)+reload-sync:$GH_WORKFLOWS_COMMAND || true" \
+		--bind "ctrl-o:rebind(load)+change-prompt(${GREEN_NORMAL}$INITIAL_WORKFLOW_PROMPT 👀 ${UPDATE_TIME}s > )+reload-sync:$GH_WORKFLOWS_COMMAND || true" \
 		--bind "ctrl-x:execute-silent(gh run cancel {1} --repo $OWNER_REPO_NAME)+reload-sync:$GH_WORKFLOWS_COMMAND || true" \
 		--expect "ctrl-f,enter,shift-left") || true
 
@@ -942,7 +944,7 @@ fzf_star_function() {
 
 	OUTPUT_SELECTION=$(FZF_DEFAULT_COMMAND="$GH_STAR_COMMAND --raw-field USER_NAME=$USER_NAME --cache $CACHE_TIME" \
 		_fzf_basic_options --nth 1,3,7.. \
-		--prompt $'\e[1;93mSearch  stars'" [$USER_NAME] > " --header-lines 3 \
+		--prompt "${YELLOW_NORMAL}Search  stars [$USER_NAME] > " --header-lines 3 \
 		--preview "gh repo view {1}" --preview-window wrap:"$PREVIEW_WINDOW_VISIBILITY" \
 		--query "$INITIAL_QUERY" --exact \
 		--bind "?:toggle-preview+change-preview:echo '$(help_star_function)'" \
@@ -1059,13 +1061,20 @@ while [ $# -gt 0 ]; do
 		;;
 	r | run)
 		shift
-		while getopts "hn:pr:u:w" option; do
+		while getopts "hn:o:pr:w" option; do
 			case "$option" in
 			h)
 				help_workflow_run_function
 				exit 0
 				;;
 			n) NUMBER_WORKFLOW_RUN_LIST=${OPTARG} ;;
+			o)
+				if [[ "$OPTARG" =~ ^[0-9]+$ ]]; then
+					UPDATE_TIME=${OPTARG}
+				else
+					_die_with_octocat "Invalid update time: $OPTARG"
+				fi
+				;;
 			p) EXCLUDE_PULL_REQUESTS=false ;;
 			r)
 				if [[ "$OPTARG" =~ ^[^:/]+/[^:/]+$ ]]; then
@@ -1075,13 +1084,6 @@ while [ $# -gt 0 ]; do
 				fi
 				if ! gh api --silent repos/"$OWNER_REPO_NAME" 2>/dev/null; then
 					_die_with_octocat "No GitHub repo called: $OWNER_REPO_NAME"
-				fi
-				;;
-			u)
-				if [[ "$OPTARG" =~ ^[0-9]+$ ]]; then
-					UPDATE_TIME=${OPTARG}
-				else
-					_die_with_octocat "Invalid update time: $OPTARG"
 				fi
 				;;
 			w) PREVIEW_WINDOW_VISIBILITY="nohidden" ;;
