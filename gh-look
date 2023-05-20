@@ -702,7 +702,7 @@ ${WHITE_BOLD}Flags${COLOR_RESET}
   ${GREEN_NORMAL}<none>${COLOR_RESET}  List Workflow Runs from current directory
   ${GREEN_NORMAL}-h    ${COLOR_RESET}  Help
   ${GREEN_NORMAL}-n    ${COLOR_RESET}  Number of listed Runs (default: 10, max: 100)
-  ${GREEN_NORMAL}-o    ${COLOR_RESET}  Operate in watch mode 👀 update the list every ${UPDATE_TIME}s (default: 10)
+  ${GREEN_NORMAL}-i    ${COLOR_RESET}  Interval for updating the list (default: 10)
   ${GREEN_NORMAL}-p    ${COLOR_RESET}  Pull Requests are included in the list (default: not included)
   ${GREEN_NORMAL}-r    ${COLOR_RESET}  Specify a repository (form: OWNER/REPO)
   ${GREEN_NORMAL}-w    ${COLOR_RESET}  Display the preview window upon start (default: hidden)
@@ -1061,14 +1061,14 @@ while [ $# -gt 0 ]; do
 		;;
 	r | run)
 		shift
-		while getopts "hn:o:pr:w" option; do
+		while getopts "hi:n:pr:w" option; do
 			case "$option" in
 			h)
 				help_workflow_run_function
 				exit 0
 				;;
 			n) NUMBER_WORKFLOW_RUN_LIST=${OPTARG} ;;
-			o)
+			i)
 				if [[ "$OPTARG" =~ ^[0-9]+$ ]]; then
 					UPDATE_TIME=${OPTARG}
 				else
