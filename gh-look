@@ -17,6 +17,7 @@ set -euo pipefail
 # TODO: make the listed elements in the workflow run section more colorful
 # TODO: allow the user to set their hotkeys in a config file
 # TODO: when the user sets the "-o" flag, let the user choose from a list of valid sorting options with fzf
+# TODO: add checks at pull request view - Ref: https://github.com/cli/cli/pull/6292
 
 # <------------------- VARIABLES -------------------- >
 
@@ -838,11 +839,13 @@ fzf_search_function() {
 			{{- if eq $langName "JavaScript" }}{{- $langName = "" -}}
 				{{- else if eq $langName "Python" }}{{- $langName = "" -}}
 			{{ end -}}
-			{{- $time := "" -}}{{- /* NOTE: Possible a repo has no commits, have an conditional around the timeago function to be safe against nil condition. */ -}}
-				{{- range .defaultBranchRef.target.history.nodes -}}
-					{{- if .committedDate -}}{{- $time = (timeago .committedDate) -}}{{- end -}}
-				{{- end -}}
-			{{- tablerow (printf "%s%s%s" (.owner.login | color "cyan+h") ("/" | color "gray+h") (.name | color "cyan+hb")) ($stargazerCount | color $stargazerColor) ($langName | color "green") ($time | color "gray+h") .description -}}
+			{{- $time := "none" -}}{{- /* NOTE: If a repo has no defaultBranch and/or commits, you need to conditionalize the .defaultBranchRef and the .committedDate to be safe against nil conditions, for example for repositories that are empty - "shellywu/wtclient". */ -}}
+				{{- if .defaultBranchRef }}
+					{{- range .defaultBranchRef.target.history.nodes -}}
+						{{- if .committedDate -}}{{- $time = (timeago .committedDate) -}}{{- end -}}
+					{{- end -}}
+				{{ end -}}
+		{{- tablerow (printf "%s%s%s" (.owner.login | color "cyan+h") ("/" | color "gray+h") (.name | color "cyan+hb")) ($stargazerCount | color $stargazerColor) ($langName | color "green") ($time | color "gray+h") .description -}}
 		{{- end -}}\''
 
 	OUTPUT_SELECTION=$(FZF_DEFAULT_COMMAND="$GH_SEARCH_COMMAND --raw-field filter=$INITIAL_QUERY --cache $CACHE_TIME" \
@@ -921,24 +924,26 @@ fzf_star_function() {
 		{{- $headerColor := "yellow+b" -}}
 			{{- tablerow ("REPO" | color $headerColor) "⭐" "🏁" ("LAST COMMIT" | color $headerColor) ("DESCRIPTION" | color $headerColor) -}}
 		{{- range .data.user.starredRepositories.nodes -}}
-		{{- $stargazerCount := printf "%.0f" .stargazerCount -}}
-			{{- if gt .stargazerCount 1000000.0 -}}{{- $stargazerCount = ">1M" -}}
-				{{- else if gt .stargazerCount 100000.0 -}}{{- $stargazerCount = printf "%.3sk" $stargazerCount -}}
-				{{- else if gt .stargazerCount 10000.0 -}}{{- $stargazerCount = printf "%.2sk" $stargazerCount -}}
-				{{- else if gt .stargazerCount 1000.0 -}}{{- $stargazerCount = printf "%.1sk" $stargazerCount -}}
-				{{- else if eq .stargazerCount 0.0 -}}{{- $stargazerCount = "" -}}
-			{{- end -}}
-		{{- $stargazerColor := "yellow" -}}
-			{{- if .viewerHasStarred }}{{ $stargazerColor = "011+h:094" }}{{ end -}}
-		{{- $langName := "" -}}
-			{{- if .primaryLanguage }}{{ $langName = .primaryLanguage.name }}{{ end -}}
-			{{- if eq $langName "JavaScript" }}{{- $langName = "" -}}
-				{{- else if eq $langName "Python" }}{{- $langName = "" -}}
-			{{ end -}}
-		{{- $time := "" -}}{{- /* NOTE: Possible a repo has no commits, have an conditional around the timeago function to be safe against nil condition. */ -}}
-			{{- range .defaultBranchRef.target.history.nodes -}}
-				{{- if .committedDate -}}{{- $time = (timeago .committedDate) -}}{{- end -}}
-			{{- end -}}
+			{{- $stargazerCount := printf "%.0f" .stargazerCount -}}
+				{{- if gt .stargazerCount 1000000.0 -}}{{- $stargazerCount = ">1M" -}}
+					{{- else if gt .stargazerCount 100000.0 -}}{{- $stargazerCount = printf "%.3sk" $stargazerCount -}}
+					{{- else if gt .stargazerCount 10000.0 -}}{{- $stargazerCount = printf "%.2sk" $stargazerCount -}}
+					{{- else if gt .stargazerCount 1000.0 -}}{{- $stargazerCount = printf "%.1sk" $stargazerCount -}}
+					{{- else if eq .stargazerCount 0.0 -}}{{- $stargazerCount = "" -}}
+				{{- end -}}
+			{{- $stargazerColor := "yellow" -}}
+				{{- if .viewerHasStarred }}{{ $stargazerColor = "011+h:094" }}{{ end -}}
+			{{- $langName := "" -}}
+				{{- if .primaryLanguage }}{{ $langName = .primaryLanguage.name }}{{ end -}}
+				{{- if eq $langName "JavaScript" }}{{- $langName = "" -}}
+					{{- else if eq $langName "Python" }}{{- $langName = "" -}}
+				{{ end -}}
+			{{- $time := "none" -}}{{- /* NOTE: If a repo has no defaultBranch and/or commits, you need to conditionalize the .defaultBranchRef and the .committedDate to be safe against nil conditions, for example for repositories that are empty - "shellywu/wtclient". */ -}}
+				{{- if .defaultBranchRef }}
+					{{- range .defaultBranchRef.target.history.nodes -}}
+						{{- if .committedDate -}}{{- $time = (timeago .committedDate) -}}{{- end -}}
+					{{- end -}}
+				{{ end -}}
 		{{- tablerow (printf "%s%s%s" (.owner.login | color "cyan+h") ("/" | color "gray+h") (.name | color "cyan+hb")) ($stargazerCount | color $stargazerColor) ($langName | color "green") ($time | color "gray+h") .description -}}
 		{{- end -}}\''
 
