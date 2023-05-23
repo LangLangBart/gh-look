@@ -17,6 +17,7 @@ set -euo pipefail
 # TODO: make the listed elements in the workflow run section more colorful
 # TODO: allow the user to set their hotkeys in a config file
 # TODO: when the user sets the "-o" flag, let the user choose from a list of valid sorting options with fzf
+# TODO: add a hotkey to allow switching between page results, page 1, page 2, ... page n
 
 # <------------------- DOCUMENTATION -------------------- >
 
@@ -202,7 +203,7 @@ ${WHITE_BOLD}Hotkeys${COLOR_RESET}
   ${GREEN_NORMAL}ctrl+x     ${COLOR_RESET}  Write a comment
   ${GREEN_NORMAL}shift+left ${COLOR_RESET}  Switch to Search
   ${GREEN_NORMAL}shift+right${COLOR_RESET}  Switch to Pull Requests
-  ${GREEN_NORMAL}esc        ${COLOR_RESET}  Exit
+  ${GREEN_NORMAL}esc        ${COLOR_RESET}  Quit
 EOF
 }
 
@@ -516,7 +517,7 @@ ${WHITE_BOLD}Hotkeys${COLOR_RESET}
   ${GREEN_NORMAL}ctrl+y     ${COLOR_RESET}  Checkout
   ${GREEN_NORMAL}shift+left ${COLOR_RESET}  Switch to Issues
   ${GREEN_NORMAL}shift+right${COLOR_RESET}  Switch to Workflow Runs
-  ${GREEN_NORMAL}esc        ${COLOR_RESET}  Exit
+  ${GREEN_NORMAL}esc        ${COLOR_RESET}  Quit
 EOF
 }
 
@@ -771,7 +772,7 @@ ${WHITE_BOLD}Hotkeys${COLOR_RESET}
   ${GREEN_NORMAL}ctrl+o    ${COLOR_RESET}  Operate in watch mode 👀 update the list every ${UPDATE_TIME}s
   ${GREEN_NORMAL}ctrl+x    ${COLOR_RESET}  Cancel a Run
   ${GREEN_NORMAL}shift+left${COLOR_RESET}  Switch to Pull Requests
-  ${GREEN_NORMAL}esc       ${COLOR_RESET}  Exit
+  ${GREEN_NORMAL}esc       ${COLOR_RESET}  Quit
 EOF
 }
 
@@ -857,7 +858,7 @@ ${WHITE_BOLD}Hotkeys${COLOR_RESET}
   ${GREEN_NORMAL}ctrl+u     ${COLOR_RESET}  Unstar repo
   ${GREEN_NORMAL}shift+left ${COLOR_RESET}  Switch to your starred repos
   ${GREEN_NORMAL}shift+right${COLOR_RESET}  Switch to Issues
-  ${GREEN_NORMAL}esc        ${COLOR_RESET}  Exit
+  ${GREEN_NORMAL}esc        ${COLOR_RESET}  Quit
 EOF
 }
 
@@ -958,7 +959,7 @@ ${WHITE_BOLD}Hotkeys${COLOR_RESET}
   ${GREEN_NORMAL}ctrl+t     ${COLOR_RESET}  Star repo (useful for stars of another user)
   ${GREEN_NORMAL}ctrl+u     ${COLOR_RESET}  Unstar repo
   ${GREEN_NORMAL}shift+right${COLOR_RESET}  Switch to Search
-  ${GREEN_NORMAL}esc        ${COLOR_RESET}  Exit
+  ${GREEN_NORMAL}esc        ${COLOR_RESET}  Quit
 EOF
 }
 
