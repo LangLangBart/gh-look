@@ -31,19 +31,18 @@ gh ext remove LangLangBart/gh-look
 ## 👨‍💻 Usage
 
 ```sh
-gh look [Commands] [Flags] [Search term]
+gh look [Command] [Flags] [Search term]
 ```
 
 | Command   | Description                    | Example                               |
 | :-------- | :----------------------------- | :------------------------------------ |
-| h, help   | Help                           | gh look h                             |
 | i, issue  | List Issues                    | gh look issue -r cli/cli involves:@me |
 | p, pr     | List Pull Requests             | gh look pr -h                         |
 | r, run    | List Workflow Runs             | gh look run -r microsoft/vscode -n 20 |
 | s, search | Search for GitHub Repositories | gh look search -w keycastr            |
 | st, star  | List Starred Repositories      | gh look star -u ashtom                |
 
-- see available `Flags` for each command with `gh look [Command] -h` or interactively with <kbd>?</kbd>
+- see available `Flags` for each command with `gh look [Command] --help` or interactively with <kbd>?</kbd>
 
 ### Hotkeys
 - switch between commands with <kbd>shift+left</kbd>/<kbd>shift+right</kbd>

@@ -154,15 +154,16 @@ _emoji_picker() {
 help_general_function() {
 	cat <<EOF
 ${WHITE_BOLD}Usage${COLOR_RESET}
-  gh look [Commands] [Flags] [Search term]
+  gh look [Command] [Flags] [Search term]
 
 ${WHITE_BOLD}Commands${COLOR_RESET}
-  ${GREEN_NORMAL} h, help  ${COLOR_RESET}  Help
   ${GREEN_NORMAL} i, issue ${COLOR_RESET}  List Issues
   ${GREEN_NORMAL} p, pr    ${COLOR_RESET}  List Pull Requests
   ${GREEN_NORMAL} r, run   ${COLOR_RESET}  List Workflow Runs
   ${GREEN_NORMAL} s, search${COLOR_RESET}  Search for GitHub Repositories
   ${GREEN_NORMAL}st, star  ${COLOR_RESET}  List Starred Repositories
+
+  For a listing of options, use gh look [Command] --help
 EOF
 }
 
@@ -1023,7 +1024,8 @@ fzf_star_function() {
 # <------------------- SCRIPT -------------------- >
 
 if [ $# = 0 ]; then
-	_die_with_octocat "Invalid command:" "$(help_general_function)"
+	help_general_function
+	exit 0
 else
 	############# Check needed programs installed #############
 	if ! command -v bat >/dev/null; then
@@ -1228,10 +1230,6 @@ while [ $# -gt 0 ]; do
 			USER_NAME="$(gh api graphql --cache 1h --raw-field query='{viewer{login}}' --jq '.data.viewer.login')"
 		fi
 		fzf_star_function
-		break
-		;;
-	-h | --help | h | help)
-		help_general_function
 		break
 		;;
 	*)
