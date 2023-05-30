@@ -13,8 +13,7 @@ set -euo pipefail
 # TODO: sometimes when searching for a popular repo like "vscode, tsx,..." it does not give the result on the first try and you have to reload with "ctrl+r". INVESTIGATE, why this is!
 # TODO: disable comments that are marked as spam, use "isMinimized" or "minimizedReason"
 # TODO: find a better way to manage the help section for each command, currently too much duplication.
-# TODO: run tests on the script
-# TODO: make the listed elements in the workflow run section more colorful
+# TODO: run tests on the script - https://github.com/dodie/testing-in-bash
 # TODO: allow the user to set their hotkeys in a config file
 # TODO: when the user sets the "-o" flag, let the user choose from a list of valid sorting options with fzf
 # TODO: add a hotkey to allow switching between page results, page 1, page 2, ... page n
@@ -492,11 +491,15 @@ ${WHITE_BOLD}Flags${COLOR_RESET}
   ${GREEN_NORMAL}-w    ${COLOR_RESET}  Display the preview window upon start (default: hidden)
 
 ${WHITE_BOLD}Symbols${COLOR_RESET}
+  🔖  Checks indicator
+	${YELLOW_NORMAL}◌${COLOR_RESET} in progress
+	${GREEN_NORMAL}✓${COLOR_RESET} success
+	${RED_NORMAL}x${COLOR_RESET} failure
+	⊘ cancelled
   💬  Total number of comments (gray commentable; red locked)
   📣  Total number of emojis (green reactable; yellow reacted; red locked)
-  +   Additions
-  -   Deletions
-  🔖  Checks indicator (green passed; yellow pending; red failed, gray cancelled)
+  ${GREEN_NORMAL}+${COLOR_RESET}   Additions
+  ${RED_NORMAL}-${COLOR_RESET}   Deletions
 
 ${WHITE_BOLD}Hotkeys${COLOR_RESET}
   ${GREEN_NORMAL}?          ${COLOR_RESET}  Toggle help
@@ -532,7 +535,7 @@ fzf_pr_function() {
 		{{- tablerow "NODE_ID_HIDDEN" (printf "%.0f of ∑ %.0f" $limitCount .data.search.issueCount | color "blue+b") ("|" | color "white+d") ("? Help · esc Quit" | color "blue") -}}{{- tablerender -}}
 		{{- tablerow "" -}}{{- tablerender -}}
 		{{- $headerColor := "blue+b" -}}
-			{{- tablerow "NODE_ID_HIDDEN" ("PR" | color $headerColor) ("AUTHOR" | color $headerColor) ("LAST UPDATE" | color $headerColor) "💬" "📣" ("+" | color "green+bd") ("-" | color "red+bd") "🔖" ("TITLE" | color $headerColor) -}}
+			{{- tablerow "NODE_ID_HIDDEN" ("PR" | color $headerColor) ("AUTHOR" | color $headerColor) ("LAST UPDATE" | color $headerColor) "🔖" "💬" "📣" ("+" | color "green+bd") ("-" | color "red+bd") ("TITLE" | color $headerColor) -}}
 		{{- range .data.search.nodes -}}
 			{{- $statePullRequestColor := "green" -}}
 				{{- if eq .state "CLOSED" }}{{ $statePullRequestColor = "red" }}{{- else if eq .state "MERGED" }}{{ $statePullRequestColor = "magenta" }}{{ end -}}
@@ -570,7 +573,7 @@ fzf_pr_function() {
 						{{- $checksDisplay = "?" | color "white" -}}
 					{{- end -}}
 				{{- end -}}
-			{{- tablerow .id (printf "#%.0f" .number | color $statePullRequestColor) ($author | color $authorColor) (timeago .updatedAt) ($commentCount | color $commentColor) ($emojiCount | color $emojiColor) (printf "+%.0f" .additions | color "green") (printf "-%.0f" .deletions | color "red") $checksDisplay .title -}}
+			{{- tablerow .id (printf "#%.0f" .number | color $statePullRequestColor) ($author | color $authorColor) (timeago .updatedAt) $checksDisplay ($commentCount | color $commentColor) ($emojiCount | color $emojiColor) (printf "+%.0f" .additions | color "green") (printf "-%.0f" .deletions | color "red") .title -}}
 		{{- end -}}\''
 
 	INITIAL_PR_PROMPT=$(grep -q A <"$SCRATCH_FILE" && echo "Pull Requests  [$OWNER_REPO_NAME] > " || echo "${GREEN_NORMAL}OPEN Pull Requests  [$OWNER_REPO_NAME] > ")
@@ -758,7 +761,11 @@ ${WHITE_BOLD}Flags${COLOR_RESET}
 ${WHITE_BOLD}Symbols${COLOR_RESET}
   👀  List is updated every ${UPDATE_TIME}s, stop it with a defined hotkey
   🔖  Status
-  ⌛️  Elapsed Time
+	${YELLOW_NORMAL}◌${COLOR_RESET} in progress
+	${GREEN_NORMAL}✓${COLOR_RESET} success
+	${RED_NORMAL}x${COLOR_RESET} failure
+	⊘ cancelled
+  ⌛️  Elapsed Time (min)
 
 ${WHITE_BOLD}Hotkeys${COLOR_RESET}
   ${GREEN_NORMAL}?         ${COLOR_RESET}  Toggle help
@@ -779,7 +786,34 @@ EOF
 
 fzf_workflow_run_function() {
 	INITIAL_WORKFLOW_PROMPT="Workflow Runs  $(printf "[%s]" "$OWNER_REPO_NAME")"
-	GH_WORKFLOWS_COMMAND="gh api --cache ${UPDATE_TIME}s --method GET --raw-field exclude_pull_requests=$EXCLUDE_PULL_REQUESTS --field per_page=$NUMBER_WORKFLOW_RUN_LIST repos/$OWNER_REPO_NAME/actions/runs "$'--jq \'["ID", "URL", "STATUS", "🔖", "⌛️", "DATE", "WORKFLOW", "BRANCH", "TITLE"], (.workflow_runs[] | [.id, .html_url, .status, (if (.conclusion == null and .status == null) then " " elif .conclusion == null then .status else .conclusion end), ((if .status == "in_progress" then now else (.updated_at | fromdateiso8601) end) - (.created_at | fromdateiso8601) | (./60|floor)+(.%60/60*100|round/100) | .*100|round/100), (.created_at | fromdateiso8601) as $time_sec | if ((now - $time_sec) / 3600) < 1 then ((now - $time_sec) / 60 | floor) | tostring + "min ago" elif ((now - $time_sec) / 3600) < 24 then ((now - $time_sec) / 3600 | floor) | tostring + "h ago" else ($time_sec | strftime("%d/%b/%y")) end, .name, .head_branch, .display_title]) | @tsv\' | column -t -s "\t"'
+	GH_WORKFLOWS_COMMAND="gh api --cache ${UPDATE_TIME}s --method GET --raw-field exclude_pull_requests=$EXCLUDE_PULL_REQUESTS --field per_page=$NUMBER_WORKFLOW_RUN_LIST repos/$OWNER_REPO_NAME/actions/runs "$' --jq \'
+        def colors:
+        {
+            "gray": 		"\u001b[90m",
+			"red": 			"\u001b[31m",
+            "green": 		"\u001b[32m",
+			"yellow": 		"\u001b[33m",
+            "cyan": 		"\u001b[36m",
+			"white_bold": 	"\u001b[1;37m",
+            "COMMENT": 		"Header lines must be colored when a column element is colored so that they are aligned correctly.  Also, only color codes that have the same length may be used, i.e. - \u001b[1;36m - would only work if the header was colored with - \u001b[0000m -. This is just a very silly workaround for the fact that the column command cannot handle ANSI colors to correctly calculate the actual cell width.",
+            "none": 		"\u001b[00m",
+            "none_bold": 	"\u001b[0000m",
+            "reset": 		"\u001b[0m"
+        };
+        def colored(text; color): colors[color] + text + colors.reset;
+		["ID", "URL", "STATUS", colored(" "; "none"), colored("🔖"; "none"), "⌛️", colored("Workflow"; "none"), colored("Branch"; "none_bold"), "Event", "Title"],
+		(.workflow_runs[] | [
+			.id,
+			.html_url,
+			.status,
+			colored((.created_at | fromdateiso8601) as $time_sec | if ((now - $time_sec) / 3600) < 1 then ((now - $time_sec) / 60 | floor) | tostring + "min ago" elif ((now - $time_sec) / 3600) < 24 then ((now - $time_sec) / 3600 | floor) | tostring + "h ago" else ($time_sec | strftime("%d/%b/%y")) end; "gray"),
+			(if (.conclusion == null and .status == null) then colored(" "; "none") elif .conclusion == null then if .status == "in_progress" then colored("◌"; "yellow") else colored(.status; "none") end else if .conclusion == "success" then colored("✓"; "green") elif .conclusion == "failure" then colored("x"; "red")  elif .conclusion == "cancelled" then colored("⊘"; "gray") else colored(.conclusion; "none") end end),
+			((if .status == "in_progress" then now else (.updated_at | fromdateiso8601) end) - (.created_at | fromdateiso8601) | (./60|floor)+(.%60/60*100|round/100) | .*100|round/100),
+			colored(.name; "cyan"),
+			colored(.head_branch; "white_bold"),
+			.event,
+			.display_title]
+		) | @tsv\' | column -ts "\t"'
 
 	OUTPUT_SELECTION=$(FZF_DEFAULT_COMMAND="$GH_WORKFLOWS_COMMAND" \
 		_fzf_basic_options --header-lines 1 --with-nth 4.. \
