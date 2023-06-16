@@ -14,6 +14,7 @@ Drop an emoji, write comments, star repositories, check workflow progress, brows
 - [bat](https://github.com/sharkdp/bat#installation) - preview looks better
 - [Fuzzy Finder (fzf)](https://github.com/junegunn/fzf#installation) - allow for interaction with listed data
 - [GitHub command line tool (gh)](https://github.com/cli/cli#installation) - get the data from Github
+- [Python](https://www.python.org) - used to open URLs on different operating systems (`python -m webbrowser <URL>`)
 
 ```zsh
 brew install fzf gh bat
