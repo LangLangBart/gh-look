@@ -830,9 +830,9 @@ fzf_workflow_run_function() {
 		--bind "ctrl-a:unbind(load)+change-prompt($INITIAL_WORKFLOW_PROMPT > )+reload-sync:$GH_WORKFLOWS_COMMAND || true" \
 		--bind "ctrl-b:execute-silent:python -m webbrowser {2}" \
 		--bind "ctrl-d:become(gh run download {1} --repo $OWNER_REPO_NAME)+reload-sync:$GH_WORKFLOWS_COMMAND || true" \
-		--bind "ctrl-k:execute-silent(gh run delete {1} --repo $OWNER_REPO_NAME)+reload-sync:$GH_WORKFLOWS_COMMAND || true" \
+		--bind "ctrl-k:execute-silent(gh run delete {1} --repo $OWNER_REPO_NAME)+down+reload-sync:$GH_WORKFLOWS_COMMAND || true" \
 		--bind "ctrl-o:rebind(load)+change-prompt(${GREEN_NORMAL}$INITIAL_WORKFLOW_PROMPT 👀 ${UPDATE_TIME}s > )+reload-sync:$GH_WORKFLOWS_COMMAND || true" \
-		--bind "ctrl-x:execute-silent(gh run cancel {1} --repo $OWNER_REPO_NAME)+reload-sync:$GH_WORKFLOWS_COMMAND || true" \
+		--bind "ctrl-x:execute-silent(gh run cancel {1} --repo $OWNER_REPO_NAME)+down+reload-sync:$GH_WORKFLOWS_COMMAND || true" \
 		--expect "ctrl-f,enter,shift-left") || true
 
 	printed_query="$(sed 1q <<<"$OUTPUT_SELECTION")"
