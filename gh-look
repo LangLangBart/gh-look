@@ -19,6 +19,8 @@ set -euo pipefail
 # TODO: add a hotkey to allow switching between page results, page 1, page 2, ... page n
 # TODO: toggle the reaction with a single hotkey, first check if there has been an reaction with the current selected emoji, if not make a reaction, if there has been undo the reaction
 # TODO: add option to subscribe to a specific issue/PR, must visulaize that I am subscribed to it, check GraphQL API 'updateSubscription' (mutation)/ 'viewerSubscription'(query).
+# TODO: adopt shell completion, for example: https://github.com/molovo/revolver/blob/master/revolver.zsh-completion
+# TODO: use 'export -f' to make functions available in child processes
 
 # <------------------- DOCUMENTATION -------------------- >
 
@@ -90,8 +92,9 @@ _fzf_basic_options() {
 	# Hint: tablerow truncates the table columns to fit the entire table in the current terminal window.
 	# The workaround to avoid the truncation is to force a really wide terminal with GH_FORCE_TTY=10000.
 	# IMPORTNAT: anything after "$@" will overwrite options in the actual command
-	GH_FORCE_TTY=10000 fzf -- \
+	SHELL="bash" GH_FORCE_TTY=10000 fzf -- \
 		--header '' \
+		--delimiter '\s+' \
 		"$@" \
 		--ansi --layout reverse --info inline --no-multi --height 100% \
 		--ellipsis '' --border horizontal \
@@ -932,7 +935,7 @@ fzf_search_function() {
 		{{- tablerow (printf "%s%s%s" (.owner.login | color "cyan+h") ("/" | color "gray+h") (.name | color "cyan+hb")) ($stargazerCount | color $stargazerColor) ($langName | color "green") ($time | color "gray+h") .description -}}
 		{{- end -}}\''
 
-	OUTPUT_SELECTION=$(FZF_DEFAULT_COMMAND="$GH_SEARCH_COMMAND --raw-field filter=$INITIAL_QUERY --cache $CACHE_TIME" \
+	OUTPUT_SELECTION=$(FZF_DEFAULT_COMMAND="$GH_SEARCH_COMMAND --raw-field filter='$INITIAL_QUERY' --cache $CACHE_TIME" \
 		_fzf_basic_options \
 		--disabled \
 		--prompt "Search  repos > " \
