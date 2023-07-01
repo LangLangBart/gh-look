@@ -95,6 +95,7 @@ _fzf_basic_options() {
 	SHELL="bash" GH_FORCE_TTY=10000 fzf -- \
 		--header '' \
 		--delimiter '\s+' \
+		--color 'header:regular' \
 		"$@" \
 		--ansi --layout reverse --info inline --no-multi --height 100% \
 		--ellipsis '' --border horizontal \
