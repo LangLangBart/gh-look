@@ -20,7 +20,7 @@ set -euo pipefail
 # TODO: toggle the reaction with a single hotkey, first check if there has been an reaction with the current selected emoji, if not make a reaction, if there has been undo the reaction
 # TODO: add option to subscribe to a specific issue/PR, must visulaize that I am subscribed to it, check GraphQL API 'updateSubscription' (mutation)/ 'viewerSubscription'(query).
 # TODO: adopt shell completion, for example: https://github.com/molovo/revolver/blob/master/revolver.zsh-completion
-# TODO: use 'export -f' to make functions available in child processes
+# TODO: use 'export -f' to make functions available in child processes, or use "set -a" https://www.gnu.org/software/bash/manual/bash.html#The-Set-Builtin
 
 # <------------------- DOCUMENTATION -------------------- >
 
@@ -565,7 +565,10 @@ fzf_pr_function() {
 					{{- else if .reactions.viewerHasReacted -}}{{- $emojiColor = "yellow+b" -}}
 				{{- end -}}
 			{{- /* NOTE: Go templates use zero based indexing, like JavaScript */ -}}
-			{{- $statusCheckRollup := (index .commits.nodes 0).commit.statusCheckRollup -}}
+			{{- $statusCheckRollup := "" -}}
+				{{- if .commits.nodes -}}
+					{{- $statusCheckRollup = (index .commits.nodes 0).commit.statusCheckRollup -}}
+				{{- end -}}
 			{{- $checksDisplay := "" -}}
 				{{- if $statusCheckRollup -}}
 					{{- if eq $statusCheckRollup.state "SUCCESS" -}}
@@ -678,7 +681,10 @@ fzf_pr_comment_function() {
 			{{- if $prefix.author -}}{{- $pullRequestAuthor = $prefix.author.login -}}{{- end -}}
 			{{- tablerow "NODE_ID_HIDDEN" "DATABASE_ID_HIDDEN" (printf "%s  #%.0f" $prefix.state $prefix.number | color $statePullRequestCommentColor) ($pullRequestAuthor | color "cyan+hb") (printf "│ %s ∙ %.0f Comments │" (timeago $prefix.createdAt) $prefix.comments.totalCount | color "gray+h") ("? Help · esc Quit" | color "blue") -}}{{- tablerender -}}
 		{{- $checksDisplay := "No checks" | color "gray+h" -}}
-		{{- $statusCheckRollup := (index $prefix.commits.nodes 0).commit.statusCheckRollup -}}
+		{{- $statusCheckRollup := "" -}}
+			{{- if .commits.nodes -}}
+				{{- $statusCheckRollup = (index $prefix.commits.nodes 0).commit.statusCheckRollup -}}
+			{{- end -}}
 			{{- if $statusCheckRollup -}}
 				{{- $totalChecks := $statusCheckRollup.contexts.checkRunCount -}}
 				{{- $failedChecks := 0 -}}
