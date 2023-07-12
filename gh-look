@@ -131,13 +131,13 @@ _user_confirm() {
 	confirm=$(dd bs=1 count=1 2>/dev/null)
 	stty sane
 	tput rmcup
-	[[ "$confirm" = "y" ]] && return 0 || return 1
+	[[ $confirm == "y" ]] && return 0 || return 1
 }
 
 # return the emoji from its corresponding string name
 _emoji_from_name() {
 	for emoji in "${valid_emojis[@]}"; do
-		if [[ "${emoji#*:}" == "$1" ]]; then
+		if [[ ${emoji#*:} == "$1" ]]; then
 			echo "${emoji%%:*}"
 			break
 		fi
@@ -277,95 +277,95 @@ fzf_issue_function() {
 	# reset the variable
 	OUTPUT_SELECTION=""
 	case "$expected_key" in
-	ctrl-e)
-		gh issue edit "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME" || true
-		_load_indicator
-		INITIAL_QUERY="$printed_query"
-		fzf_issue_function 0s
-		;;
-	ctrl-g)
-		check_info_api=()
-		# "[0]" is the ticket closed ?
-		# "[1]" can the viewer close it ?
-		while IFS='' read -r line; do check_info_api+=("$line"); done < <(
-			gh api graphql --raw-field id="$output_id" \
-				--raw-field query=$'query ($id: ID!) { node(id: $id) { ... on Issue { closed viewerCanClose }}}' \
-				--jq '.data.node | .closed,.viewerCanClose'
-		)
-		if [ "${check_info_api[0]}" = "true" ]; then
-			if [ "${check_info_api[1]}" = "true" ]; then
-				if _user_confirm "$output_textline" "reopen this issue"; then
-					if _user_confirm "$output_textline" "do you want to add a comment"; then
-						tput sc
-						echo -en "${WHITE_BOLD}Enter a comment!${COLOR_RESET}\n> "
-						read -r message
-						tput rc && tput el
-						gh issue reopen "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME" --comment "$message" &>/dev/null
-					else
-						gh issue reopen "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME" &>/dev/null
-					fi
-					_load_indicator $'🟢 Success.... Issue reopened!\nRestarting'
-				else
-					_load_indicator $'Discarding... Issue was not reopened!\nRestarting'
-				fi
-			else
-				_load_indicator $'🛑 Missing permissions to reopen this Issue!\nRestarting'
-			fi
-		else
-			if [ "${check_info_api[1]}" = "true" ]; then
-				if _user_confirm "$output_textline" "close this issue"; then
-					if _user_confirm "$output_textline" "do you want to add a comment"; then
-						tput sc
-						echo -en "${WHITE_BOLD}Enter a comment!${COLOR_RESET}\n> "
-						read -r message
-						tput rc && tput el
-						gh issue close "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME" --comment "$message" &>/dev/null
-					else
-						gh issue close "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME" &>/dev/null
-					fi
-					_load_indicator $'🟢 Success.... Issue closed!\nRestarting'
-				else
-					_load_indicator $'Discarding... Issue was not closed!\nRestarting'
-				fi
-			else
-				_load_indicator $'🛑 Missing permissions to close this Issue!\nRestarting'
-			fi
-		fi
-		INITIAL_QUERY="$printed_query"
-		fzf_issue_function 0s
-		;;
-	ctrl-n)
-		gh issue create --repo "$OWNER_REPO_NAME" || true
-		_load_indicator
-		INITIAL_QUERY="$printed_query"
-		fzf_issue_function 0s
-		;;
-	ctrl-x)
-		gh issue comment "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME" || true
-		_load_indicator
-		INITIAL_QUERY="$printed_query"
-		fzf_issue_function 0s
-		;;
-	enter)
-		INITIAL_QUERY="$printed_query"
-		if [ -z "$number_comments" ]; then
-			# adding U+00a0 (non-breaking space) for issues with zero comments and commentable
-			# without it an issue with 0 comments and >1 reaction would trick the if check
-			# sometimes the "age" column can only be 2 words instead of 3, e.g. "just now", that is why $6 and $7
-			_load_indicator $'No comments on this issue\nRestarting'
+		ctrl-e)
+			gh issue edit "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME" || true
+			_load_indicator
+			INITIAL_QUERY="$printed_query"
 			fzf_issue_function 0s
-		else
-			fzf_issue_comment_function
-		fi
-		;;
-	shift-left)
-		INITIAL_QUERY=""
-		fzf_search_function
-		;;
-	shift-right)
-		INITIAL_QUERY=""
-		fzf_pr_function
-		;;
+			;;
+		ctrl-g)
+			check_info_api=()
+			# "[0]" is the ticket closed ?
+			# "[1]" can the viewer close it ?
+			while IFS='' read -r line; do check_info_api+=("$line"); done < <(
+				gh api graphql --raw-field id="$output_id" \
+					--raw-field query=$'query ($id: ID!) { node(id: $id) { ... on Issue { closed viewerCanClose }}}' \
+					--jq '.data.node | .closed,.viewerCanClose'
+			)
+			if [ "${check_info_api[0]}" = "true" ]; then
+				if [ "${check_info_api[1]}" = "true" ]; then
+					if _user_confirm "$output_textline" "reopen this issue"; then
+						if _user_confirm "$output_textline" "do you want to add a comment"; then
+							tput sc
+							echo -en "${WHITE_BOLD}Enter a comment!${COLOR_RESET}\n> "
+							read -r message
+							tput rc && tput el
+							gh issue reopen "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME" --comment "$message" &>/dev/null
+						else
+							gh issue reopen "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME" &>/dev/null
+						fi
+						_load_indicator $'🟢 Success.... Issue reopened!\nRestarting'
+					else
+						_load_indicator $'Discarding... Issue was not reopened!\nRestarting'
+					fi
+				else
+					_load_indicator $'🛑 Missing permissions to reopen this Issue!\nRestarting'
+				fi
+			else
+				if [ "${check_info_api[1]}" = "true" ]; then
+					if _user_confirm "$output_textline" "close this issue"; then
+						if _user_confirm "$output_textline" "do you want to add a comment"; then
+							tput sc
+							echo -en "${WHITE_BOLD}Enter a comment!${COLOR_RESET}\n> "
+							read -r message
+							tput rc && tput el
+							gh issue close "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME" --comment "$message" &>/dev/null
+						else
+							gh issue close "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME" &>/dev/null
+						fi
+						_load_indicator $'🟢 Success.... Issue closed!\nRestarting'
+					else
+						_load_indicator $'Discarding... Issue was not closed!\nRestarting'
+					fi
+				else
+					_load_indicator $'🛑 Missing permissions to close this Issue!\nRestarting'
+				fi
+			fi
+			INITIAL_QUERY="$printed_query"
+			fzf_issue_function 0s
+			;;
+		ctrl-n)
+			gh issue create --repo "$OWNER_REPO_NAME" || true
+			_load_indicator
+			INITIAL_QUERY="$printed_query"
+			fzf_issue_function 0s
+			;;
+		ctrl-x)
+			gh issue comment "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME" || true
+			_load_indicator
+			INITIAL_QUERY="$printed_query"
+			fzf_issue_function 0s
+			;;
+		enter)
+			INITIAL_QUERY="$printed_query"
+			if [ -z "$number_comments" ]; then
+				# adding U+00a0 (non-breaking space) for issues with zero comments and commentable
+				# without it an issue with 0 comments and >1 reaction would trick the if check
+				# sometimes the "age" column can only be 2 words instead of 3, e.g. "just now", that is why $6 and $7
+				_load_indicator $'No comments on this issue\nRestarting'
+				fzf_issue_function 0s
+			else
+				fzf_issue_comment_function
+			fi
+			;;
+		shift-left)
+			INITIAL_QUERY=""
+			fzf_search_function
+			;;
+		shift-right)
+			INITIAL_QUERY=""
+			fzf_pr_function
+			;;
 	esac
 }
 
@@ -442,42 +442,42 @@ fzf_issue_comment_function() {
 	# reset the variable
 	OUTPUT_SELECTION=""
 	case "$expected_key" in
-	ctrl-k)
-		check_viewer_permission=$(
-			gh api graphql --raw-field id="$output_id" \
-				--raw-field query=$'query ($id: ID!) { node(id: $id) { ... on IssueComment { viewerCanDelete }}}' \
-				--jq '.data.node.viewerCanDelete'
-		)
-		if [ "$check_viewer_permission" = "true" ]; then
-			if _user_confirm "$output_textline" "deletion of this comment"; then
-				gh api graphql --silent --raw-field id="$output_id" \
-					--raw-field query=$'mutation($id: ID!) { deleteIssueComment(input: {id: $id}) { clientMutationId }}'
-				_load_indicator $'🟢 Success.... comment deleted\nRestarting'
+		ctrl-k)
+			check_viewer_permission=$(
+				gh api graphql --raw-field id="$output_id" \
+					--raw-field query=$'query ($id: ID!) { node(id: $id) { ... on IssueComment { viewerCanDelete }}}' \
+					--jq '.data.node.viewerCanDelete'
+			)
+			if [ "$check_viewer_permission" = "true" ]; then
+				if _user_confirm "$output_textline" "deletion of this comment"; then
+					gh api graphql --silent --raw-field id="$output_id" \
+						--raw-field query=$'mutation($id: ID!) { deleteIssueComment(input: {id: $id}) { clientMutationId }}'
+					_load_indicator $'🟢 Success.... comment deleted\nRestarting'
+				else
+					_load_indicator $'Discarding... comment was not deleted!\nRestarting'
+				fi
 			else
-				_load_indicator $'Discarding... comment was not deleted!\nRestarting'
+				_load_indicator $'🛑 Missing permissions to delete this comment!\nRestarting'
 			fi
-		else
-			_load_indicator $'🛑 Missing permissions to delete this comment!\nRestarting'
-		fi
-		INITIAL_COMMENT_QUERY="$printed_query"
-		fzf_issue_comment_function 0s
-		;;
-	ctrl-n)
-		gh issue create --repo "$OWNER_REPO_NAME" || true
-		_load_indicator
-		INITIAL_QUERY="$printed_query"
-		fzf_issue_function 0s
-		;;
-	ctrl-x)
-		gh issue comment "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME" || true
-		_load_indicator
-		INITIAL_COMMENT_QUERY="$printed_query"
-		fzf_issue_comment_function 0s
-		;;
-	esc)
-		INITIAL_COMMENT_QUERY=""
-		fzf_issue_function
-		;;
+			INITIAL_COMMENT_QUERY="$printed_query"
+			fzf_issue_comment_function 0s
+			;;
+		ctrl-n)
+			gh issue create --repo "$OWNER_REPO_NAME" || true
+			_load_indicator
+			INITIAL_QUERY="$printed_query"
+			fzf_issue_function 0s
+			;;
+		ctrl-x)
+			gh issue comment "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME" || true
+			_load_indicator
+			INITIAL_COMMENT_QUERY="$printed_query"
+			fzf_issue_comment_function 0s
+			;;
+		esc)
+			INITIAL_COMMENT_QUERY=""
+			fzf_issue_function
+			;;
 	esac
 }
 
@@ -613,43 +613,43 @@ fzf_pr_function() {
 	# reset the variable
 	OUTPUT_SELECTION=""
 	case "$expected_key" in
-	ctrl-e)
-		gh pr edit "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME" || true
-		_load_indicator
-		INITIAL_QUERY="$printed_query"
-		fzf_pr_function 0s
-		;;
-	ctrl-g)
-		gh pr merge "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME"
-		exit 0
-		;;
-	ctrl-x)
-		gh pr comment "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME" || true
-		_load_indicator
-		INITIAL_QUERY="$printed_query"
-		fzf_pr_function 0s
-		;;
-	ctrl-y)
-		gh pr checkout "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME"
-		exit 0
-		;;
-	enter)
-		INITIAL_QUERY="$printed_query"
-		if [ -z "$number_comments" ]; then
-			_load_indicator $'No comments on this Pull Request\nRestarting'
-			fzf_pr_function
-		else
-			fzf_pr_comment_function
-		fi
-		;;
-	shift-left)
-		INITIAL_QUERY=""
-		fzf_issue_function
-		;;
-	shift-right)
-		INITIAL_QUERY=""
-		fzf_workflow_run_function
-		;;
+		ctrl-e)
+			gh pr edit "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME" || true
+			_load_indicator
+			INITIAL_QUERY="$printed_query"
+			fzf_pr_function 0s
+			;;
+		ctrl-g)
+			gh pr merge "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME"
+			exit 0
+			;;
+		ctrl-x)
+			gh pr comment "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME" || true
+			_load_indicator
+			INITIAL_QUERY="$printed_query"
+			fzf_pr_function 0s
+			;;
+		ctrl-y)
+			gh pr checkout "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME"
+			exit 0
+			;;
+		enter)
+			INITIAL_QUERY="$printed_query"
+			if [ -z "$number_comments" ]; then
+				_load_indicator $'No comments on this Pull Request\nRestarting'
+				fzf_pr_function
+			else
+				fzf_pr_comment_function
+			fi
+			;;
+		shift-left)
+			INITIAL_QUERY=""
+			fzf_issue_function
+			;;
+		shift-right)
+			INITIAL_QUERY=""
+			fzf_workflow_run_function
+			;;
 	esac
 }
 
@@ -743,16 +743,16 @@ fzf_pr_comment_function() {
 	# reset the variable
 	OUTPUT_SELECTION=""
 	case "$expected_key" in
-	ctrl-x)
-		gh pr comment "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME" || true
-		_load_indicator
-		INITIAL_COMMENT_QUERY="$printed_query"
-		fzf_pr_comment_function 0s
-		;;
-	esc)
-		INITIAL_COMMENT_QUERY=""
-		fzf_pr_function
-		;;
+		ctrl-x)
+			gh pr comment "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME" || true
+			_load_indicator
+			INITIAL_COMMENT_QUERY="$printed_query"
+			fzf_pr_comment_function 0s
+			;;
+		esc)
+			INITIAL_COMMENT_QUERY=""
+			fzf_pr_function
+			;;
 	esac
 }
 
@@ -852,30 +852,30 @@ fzf_workflow_run_function() {
 	# reset the variable
 	OUTPUT_SELECTION=""
 	case "$expected_key" in
-	enter)
-		if grep -Eq 'in_progress|queued' <<<"$output_status"; then
-			gh run watch --repo "$OWNER_REPO_NAME"
-		elif ! gh run view --log "$output_id" --repo "$OWNER_REPO_NAME" &>/dev/null; then
-			_load_indicator $'No logs found\nRestarting'
-		else
-			GH_PAGER="$LANG_BAT_SETUP log" gh run view --log "$output_id" --repo "$OWNER_REPO_NAME"
-		fi
-		INITIAL_QUERY="$printed_query"
-		fzf_workflow_run_function
-		;;
-	ctrl-f)
-		if ! gh run view --log-failed "$output_id" --repo "$OWNER_REPO_NAME" &>/dev/null; then
-			_load_indicator $'No failed logs found\nRestarting'
-		else
-			GH_PAGER="$LANG_BAT_SETUP log" gh run view --log-failed "$output_id" --repo "$OWNER_REPO_NAME"
-		fi
-		INITIAL_QUERY="$printed_query"
-		fzf_workflow_run_function
-		;;
-	shift-left)
-		INITIAL_QUERY=""
-		fzf_pr_function
-		;;
+		enter)
+			if grep -Eq 'in_progress|queued' <<<"$output_status"; then
+				gh run watch --repo "$OWNER_REPO_NAME"
+			elif ! gh run view --log "$output_id" --repo "$OWNER_REPO_NAME" &>/dev/null; then
+				_load_indicator $'No logs found\nRestarting'
+			else
+				GH_PAGER="$LANG_BAT_SETUP log" gh run view --log "$output_id" --repo "$OWNER_REPO_NAME"
+			fi
+			INITIAL_QUERY="$printed_query"
+			fzf_workflow_run_function
+			;;
+		ctrl-f)
+			if ! gh run view --log-failed "$output_id" --repo "$OWNER_REPO_NAME" &>/dev/null; then
+				_load_indicator $'No failed logs found\nRestarting'
+			else
+				GH_PAGER="$LANG_BAT_SETUP log" gh run view --log-failed "$output_id" --repo "$OWNER_REPO_NAME"
+			fi
+			INITIAL_QUERY="$printed_query"
+			fzf_workflow_run_function
+			;;
+		shift-left)
+			INITIAL_QUERY=""
+			fzf_pr_function
+			;;
 	esac
 }
 
@@ -964,19 +964,19 @@ fzf_search_function() {
 	# reset the variable
 	OUTPUT_SELECTION=""
 	case "$expected_key" in
-	shift-left)
-		INITIAL_QUERY=""
-		USER_NAME="$(gh api graphql --cache 1h --raw-field query='{viewer{login}}' --jq '.data.viewer.login')"
-		fzf_star_function
-		;;
-	shift-right)
-		INITIAL_QUERY=""
-		OWNER_REPO_NAME=${output_textline:-"$OWNER_REPO_NAME"}
-		if [ -z "$OWNER_REPO_NAME" ]; then
-			OWNER_REPO_NAME="$(gh api graphql --cache 1h --field owner=:owner --field name=:repo --raw-field query=$'query ($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { nameWithOwner }}' --jq '.[].repository.nameWithOwner' 2>/dev/null || echo "cli/cli")"
-		fi
-		fzf_issue_function 0s
-		;;
+		shift-left)
+			INITIAL_QUERY=""
+			USER_NAME="$(gh api graphql --cache 1h --raw-field query='{viewer{login}}' --jq '.data.viewer.login')"
+			fzf_star_function
+			;;
+		shift-right)
+			INITIAL_QUERY=""
+			OWNER_REPO_NAME=${output_textline:-"$OWNER_REPO_NAME"}
+			if [ -z "$OWNER_REPO_NAME" ]; then
+				OWNER_REPO_NAME="$(gh api graphql --cache 1h --field owner=:owner --field name=:repo --raw-field query=$'query ($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { nameWithOwner }}' --jq '.[].repository.nameWithOwner' 2>/dev/null || echo "cli/cli")"
+			fi
+			fzf_issue_function 0s
+			;;
 	esac
 }
 
@@ -1060,11 +1060,11 @@ fzf_star_function() {
 	# reset the variable
 	OUTPUT_SELECTION=""
 	case "$expected_key" in
-	shift-right)
-		INITIAL_QUERY=""
-		OWNER_REPO_NAME="$output_textline"
-		fzf_search_function
-		;;
+		shift-right)
+			INITIAL_QUERY=""
+			OWNER_REPO_NAME="$output_textline"
+			fzf_search_function
+			;;
 	esac
 }
 
@@ -1103,186 +1103,186 @@ fi
 while [ $# -gt 0 ]; do
 	COMMAND_ARG="$1"
 	case "$COMMAND_ARG" in
-	i | issue | p | pr)
-		shift
-		while getopts :c:eho:r:w flag; do
-			case "$flag" in
-			c)
-				if [[ "$OPTARG" =~ ^[0-9]+[smh]$ ]]; then
-					CACHE_TIME="$OPTARG"
-				else
-					_die_with_octocat "Invalid cache time: $OPTARG"
-				fi
-				;;
-			e) REACTION_EMOJI="$(_emoji_picker)" ;;
-			h)
-				grep -Eq "i|issue" <<<"$COMMAND_ARG" && help_issue_function
-				grep -Eq "p|pr" <<<"$COMMAND_ARG" && help_pr_function
-				exit 0
-				;;
-			o)
-				if [[ "$OPTARG" =~ ^[A-Za-z-]{7,}$ ]]; then
-					SORTING_ORDER="sort:$OPTARG"
-				else
-					_die_with_octocat "Invalid sort order: $OPTARG" "Check the readme or this link: https://docs.github.com/en/search-github/searching-on-github"
-				fi
-				;;
-			r)
-				# local syntax test first to fail fast, and then gh api test
-				# curl is faster, but unauthenticated API requests to GitHub are capped at 60 per hour. Authenticated API requests 5000 per hour.
-				if [[ "$OPTARG" =~ ^[^:/]+/[^:/]+$ ]]; then
-					OWNER_REPO_NAME="$OPTARG"
-				else
-					_die_with_octocat "Respect the syntax: gh look {issue,pr} -R OWNER/REPO"
-				fi
-				if ! gh api --silent repos/"$OWNER_REPO_NAME" 2>/dev/null; then
-					_die_with_octocat "No GitHub repo called: $OWNER_REPO_NAME"
-				fi
-				;;
-			w) PREVIEW_WINDOW_VISIBILITY="nohidden" ;;
-			*)
-				grep -Eq "i|issue" <<<"$COMMAND_ARG" && _die_with_octocat "Invalid command:" "$(help_issue_function)"
-				grep -Eq "p|pr" <<<"$COMMAND_ARG" && _die_with_octocat "Invalid command:" "$(help_pr_function)"
-				;;
-			esac
-		done
-		# shift all processed options away, all that's left "$*" are non-options (aka mass-arguments/operands)
-		shift "$((OPTIND - 1))"
-		INITIAL_QUERY="$*"
-		if [ -z "$OWNER_REPO_NAME" ]; then
-			# if the OWNER_REPO_NAME is not set yet, check if the repo has a remote and assign the variable
-			git ls-remote --get-url >/dev/null 2>&1 || _die_with_octocat "No remote git repo found"
-			# local alternative, but requires Perl-compatible regular expressions (PCREs)
-			# git remote -v | grep -m 1 -oP '(?<=\:).+(?=\.)'
-			OWNER_REPO_NAME="$(gh api graphql --cache 1h --field owner=:owner --field name=:repo --raw-field query=$'query ($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { nameWithOwner }}' --jq '.[].repository.nameWithOwner')"
-		fi
-
-		grep -Eq "i|issue" <<<"$COMMAND_ARG" && fzf_issue_function
-		grep -Eq "p|pr" <<<"$COMMAND_ARG" && fzf_pr_function
-		break
-		;;
-	r | run)
-		shift
-		while getopts "hi:n:pr:w" option; do
-			case "$option" in
-			h)
-				help_workflow_run_function
-				exit 0
-				;;
-			i)
-				if [[ "$OPTARG" =~ ^[0-9]+$ ]]; then
-					UPDATE_TIME=${OPTARG}
-				else
-					_die_with_octocat "Invalid update time: $OPTARG"
-				fi
-				;;
-			n) NUMBER_WORKFLOW_RUN_LIST=${OPTARG} ;;
-			p) EXCLUDE_PULL_REQUESTS=false ;;
-			r)
-				if [[ "$OPTARG" =~ ^[^:/]+/[^:/]+$ ]]; then
-					OWNER_REPO_NAME="$OPTARG"
-				else
-					_die_with_octocat "Respect the syntax: gh look {issue,pr} -R OWNER/REPO"
-				fi
-				if ! gh api --silent repos/"$OWNER_REPO_NAME" 2>/dev/null; then
-					_die_with_octocat "No GitHub repo called: $OWNER_REPO_NAME"
-				fi
-				;;
-			w) PREVIEW_WINDOW_VISIBILITY="nohidden" ;;
-			*)
-				_die_with_octocat "Invalid command:" "$(help_workflow_run_function)"
-				;;
-			esac
-		done
-		shift "$((OPTIND - 1))"
-		test=$(gh repo set-default --view "$(git config --get remote.origin | cut -d: -f2 | cut -d. -f1)" 2>/dev/null || true)
-		# "set-default --view" always returns a zero exit value, the workaround is to test for any spaces in the string
-		[[ -z ${OWNER_REPO_NAME} ]] && [[ ! $test =~ \  ]] && OWNER_REPO_NAME="$test"
-
-		if [[ -z ${OWNER_REPO_NAME} ]]; then
-			remote_choice="$(git remote -v | cut -d: -f2 | cut -d. -f1 | sort -u)"
-			if [[ -z $remote_choice ]]; then
-				_die_with_octocat "No Git remotes found."
-			elif [[ $(wc -l <<<"$remote_choice") -eq 1 ]]; then
-				OWNER_REPO_NAME="$remote_choice"
-			elif [[ $(wc -l <<<"$remote_choice") -gt 1 ]]; then
-				OWNER_REPO_NAME="$(_fzf_basic_options <<<"$remote_choice" \
-					--header "For which repository would you like to see Workflow Runs ?")"
+		i | issue | p | pr)
+			shift
+			while getopts :c:eho:r:w flag; do
+				case "$flag" in
+					c)
+						if [[ $OPTARG =~ ^[0-9]+[smh]$ ]]; then
+							CACHE_TIME="$OPTARG"
+						else
+							_die_with_octocat "Invalid cache time: $OPTARG"
+						fi
+						;;
+					e) REACTION_EMOJI="$(_emoji_picker)" ;;
+					h)
+						grep -Eq "i|issue" <<<"$COMMAND_ARG" && help_issue_function
+						grep -Eq "p|pr" <<<"$COMMAND_ARG" && help_pr_function
+						exit 0
+						;;
+					o)
+						if [[ $OPTARG =~ ^[A-Za-z-]{7,}$ ]]; then
+							SORTING_ORDER="sort:$OPTARG"
+						else
+							_die_with_octocat "Invalid sort order: $OPTARG" "Check the readme or this link: https://docs.github.com/en/search-github/searching-on-github"
+						fi
+						;;
+					r)
+						# local syntax test first to fail fast, and then gh api test
+						# curl is faster, but unauthenticated API requests to GitHub are capped at 60 per hour. Authenticated API requests 5000 per hour.
+						if [[ $OPTARG =~ ^[^:/]+/[^:/]+$ ]]; then
+							OWNER_REPO_NAME="$OPTARG"
+						else
+							_die_with_octocat "Respect the syntax: gh look {issue,pr} -R OWNER/REPO"
+						fi
+						if ! gh api --silent repos/"$OWNER_REPO_NAME" 2>/dev/null; then
+							_die_with_octocat "No GitHub repo called: $OWNER_REPO_NAME"
+						fi
+						;;
+					w) PREVIEW_WINDOW_VISIBILITY="nohidden" ;;
+					*)
+						grep -Eq "i|issue" <<<"$COMMAND_ARG" && _die_with_octocat "Invalid command:" "$(help_issue_function)"
+						grep -Eq "p|pr" <<<"$COMMAND_ARG" && _die_with_octocat "Invalid command:" "$(help_pr_function)"
+						;;
+				esac
+			done
+			# shift all processed options away, all that's left "$*" are non-options (aka mass-arguments/operands)
+			shift "$((OPTIND - 1))"
+			INITIAL_QUERY="$*"
+			if [ -z "$OWNER_REPO_NAME" ]; then
+				# if the OWNER_REPO_NAME is not set yet, check if the repo has a remote and assign the variable
+				git ls-remote --get-url >/dev/null 2>&1 || _die_with_octocat "No remote git repo found"
+				# local alternative, but requires Perl-compatible regular expressions (PCREs)
+				# git remote -v | grep -m 1 -oP '(?<=\:).+(?=\.)'
+				OWNER_REPO_NAME="$(gh api graphql --cache 1h --field owner=:owner --field name=:repo --raw-field query=$'query ($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { nameWithOwner }}' --jq '.[].repository.nameWithOwner')"
 			fi
-		fi
-		fzf_workflow_run_function
-		break
-		;;
-	s | search)
-		shift
-		while getopts :c:hw flag; do
-			case "$flag" in
-			c)
-				if [[ "$OPTARG" =~ ^[0-9]+[smh]$ ]]; then
-					CACHE_TIME="$OPTARG"
-				else
-					_die_with_octocat "Invalid cache time: $OPTARG"
+
+			grep -Eq "i|issue" <<<"$COMMAND_ARG" && fzf_issue_function
+			grep -Eq "p|pr" <<<"$COMMAND_ARG" && fzf_pr_function
+			break
+			;;
+		r | run)
+			shift
+			while getopts "hi:n:pr:w" option; do
+				case "$option" in
+					h)
+						help_workflow_run_function
+						exit 0
+						;;
+					i)
+						if [[ $OPTARG =~ ^[0-9]+$ ]]; then
+							UPDATE_TIME=${OPTARG}
+						else
+							_die_with_octocat "Invalid update time: $OPTARG"
+						fi
+						;;
+					n) NUMBER_WORKFLOW_RUN_LIST=${OPTARG} ;;
+					p) EXCLUDE_PULL_REQUESTS=false ;;
+					r)
+						if [[ $OPTARG =~ ^[^:/]+/[^:/]+$ ]]; then
+							OWNER_REPO_NAME="$OPTARG"
+						else
+							_die_with_octocat "Respect the syntax: gh look {issue,pr} -R OWNER/REPO"
+						fi
+						if ! gh api --silent repos/"$OWNER_REPO_NAME" 2>/dev/null; then
+							_die_with_octocat "No GitHub repo called: $OWNER_REPO_NAME"
+						fi
+						;;
+					w) PREVIEW_WINDOW_VISIBILITY="nohidden" ;;
+					*)
+						_die_with_octocat "Invalid command:" "$(help_workflow_run_function)"
+						;;
+				esac
+			done
+			shift "$((OPTIND - 1))"
+			test=$(gh repo set-default --view "$(git config --get remote.origin | cut -d: -f2 | cut -d. -f1)" 2>/dev/null || true)
+			# "set-default --view" always returns a zero exit value, the workaround is to test for any spaces in the string
+			[[ -z ${OWNER_REPO_NAME} ]] && [[ ! $test =~ \  ]] && OWNER_REPO_NAME="$test"
+
+			if [[ -z ${OWNER_REPO_NAME} ]]; then
+				remote_choice="$(git remote -v | cut -d: -f2 | cut -d. -f1 | sort -u)"
+				if [[ -z $remote_choice ]]; then
+					_die_with_octocat "No Git remotes found."
+				elif [[ $(wc -l <<<"$remote_choice") -eq 1 ]]; then
+					OWNER_REPO_NAME="$remote_choice"
+				elif [[ $(wc -l <<<"$remote_choice") -gt 1 ]]; then
+					OWNER_REPO_NAME="$(_fzf_basic_options <<<"$remote_choice" \
+						--header "For which repository would you like to see Workflow Runs ?")"
 				fi
-				;;
-			h)
-				help_search_function
-				exit 0
-				;;
-			w) PREVIEW_WINDOW_VISIBILITY="nohidden" ;;
-			*)
-				_die_with_octocat "Invalid command:" "$(help_search_function)"
-				;;
-			esac
-		done
-		shift "$((OPTIND - 1))"
-		INITIAL_QUERY="$*"
-		fzf_search_function
-		break
-		;;
-	st | star)
-		shift
-		while getopts :c:hu:w flag; do
-			case "$flag" in
-			c)
-				if [[ "$OPTARG" =~ ^[0-9]+[smh]$ ]]; then
-					CACHE_TIME="$OPTARG"
-				else
-					_die_with_octocat "Invalid cache time: $OPTARG"
-				fi
-				;;
-			h)
-				help_star_function
-				exit 0
-				;;
-			u)
-				# local syntax test first to fail fast, and then gh api test
-				if [[ "$OPTARG" =~ ^[^:/]+$ ]]; then
-					USER_NAME="$OPTARG"
-				else
-					_die_with_octocat "Respect the syntax: gh look star -u USER"
-				fi
-				# gh api --silent users/... would be shorter, but would result in a false positive for organizations
-				if ! gh api graphql --silent --raw-field USER_NAME="$USER_NAME" --raw-field query=$'query ($USER_NAME: String!) { user(login: $USER_NAME) { login }}' 2>/dev/null; then
-					_die_with_octocat "No USER called: $USER_NAME"
-				fi
-				;;
-			w) PREVIEW_WINDOW_VISIBILITY="nohidden" ;;
-			*)
-				_die_with_octocat "Invalid command:" "$(help_star_function)"
-				;;
-			esac
-		done
-		shift "$((OPTIND - 1))"
-		INITIAL_QUERY="$*"
-		# if the USER_NAME is not set yet, use your own.
-		if [ -z "$USER_NAME" ]; then
-			USER_NAME="$(gh api graphql --cache 1h --raw-field query='{viewer{login}}' --jq '.data.viewer.login')"
-		fi
-		fzf_star_function
-		break
-		;;
-	*)
-		_die_with_octocat "Invalid command:" "$(help_general_function)"
-		;;
+			fi
+			fzf_workflow_run_function
+			break
+			;;
+		s | search)
+			shift
+			while getopts :c:hw flag; do
+				case "$flag" in
+					c)
+						if [[ $OPTARG =~ ^[0-9]+[smh]$ ]]; then
+							CACHE_TIME="$OPTARG"
+						else
+							_die_with_octocat "Invalid cache time: $OPTARG"
+						fi
+						;;
+					h)
+						help_search_function
+						exit 0
+						;;
+					w) PREVIEW_WINDOW_VISIBILITY="nohidden" ;;
+					*)
+						_die_with_octocat "Invalid command:" "$(help_search_function)"
+						;;
+				esac
+			done
+			shift "$((OPTIND - 1))"
+			INITIAL_QUERY="$*"
+			fzf_search_function
+			break
+			;;
+		st | star)
+			shift
+			while getopts :c:hu:w flag; do
+				case "$flag" in
+					c)
+						if [[ $OPTARG =~ ^[0-9]+[smh]$ ]]; then
+							CACHE_TIME="$OPTARG"
+						else
+							_die_with_octocat "Invalid cache time: $OPTARG"
+						fi
+						;;
+					h)
+						help_star_function
+						exit 0
+						;;
+					u)
+						# local syntax test first to fail fast, and then gh api test
+						if [[ $OPTARG =~ ^[^:/]+$ ]]; then
+							USER_NAME="$OPTARG"
+						else
+							_die_with_octocat "Respect the syntax: gh look star -u USER"
+						fi
+						# gh api --silent users/... would be shorter, but would result in a false positive for organizations
+						if ! gh api graphql --silent --raw-field USER_NAME="$USER_NAME" --raw-field query=$'query ($USER_NAME: String!) { user(login: $USER_NAME) { login }}' 2>/dev/null; then
+							_die_with_octocat "No USER called: $USER_NAME"
+						fi
+						;;
+					w) PREVIEW_WINDOW_VISIBILITY="nohidden" ;;
+					*)
+						_die_with_octocat "Invalid command:" "$(help_star_function)"
+						;;
+				esac
+			done
+			shift "$((OPTIND - 1))"
+			INITIAL_QUERY="$*"
+			# if the USER_NAME is not set yet, use your own.
+			if [ -z "$USER_NAME" ]; then
+				USER_NAME="$(gh api graphql --cache 1h --raw-field query='{viewer{login}}' --jq '.data.viewer.login')"
+			fi
+			fzf_star_function
+			break
+			;;
+		*)
+			_die_with_octocat "Invalid command:" "$(help_general_function)"
+			;;
 	esac
 done
