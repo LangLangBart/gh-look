@@ -40,9 +40,6 @@ INITIAL_COMMENT_QUERY=""
 OUTPUT_SELECTION=""
 # it can happen, if a user defined "LESS" with the "-F" flag in its shell setup, e.g. LESS="-FK -j.5"
 # it will overwrite "bat --pager 'less -R' --paging always".
-# So the "-F" flag is removed, but the other options will remain the same.
-new_less="$(echo "$LESS" | sed 's/-F //;s/-F //;s/-F//;s/F//')"
-export LESS=$new_less
 LANG_BAT_SETUP="bat --pager 'less -R' --paging always --color always --style plain --language"
 
 # for better speed
