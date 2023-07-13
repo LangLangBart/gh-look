@@ -74,7 +74,7 @@ GH_REMOVE_REACTION=$'gh api graphql --silent --raw-field query=\'mutation($id: I
 _die_with_octocat() {
 	GH_PAGER="cat" gh api octocat
 	printf "%s[%s] < ERROR > %s%s" "$RED_NORMAL" "$(date +"%H:%M:%S")" "${1:?"No error message has been defined."}" "$COLOR_RESET"
-	printf "\n%s\n" "${2:-}"
+	printf "\n%s\n" "${2-}"
 	exit 1
 }
 
@@ -113,7 +113,7 @@ _load_indicator() {
 		#  Restore cursor position to the saved position
 		tput rc
 		printf "%s %s" "${1:-"Restarting"}" "$i"
-		sleep "${2:-"0.2"}"
+		sleep "${2-"0.2"}"
 	done
 	# Restore the terminal state
 	tput rmcup
@@ -123,7 +123,7 @@ _load_indicator() {
 _user_confirm() {
 	local confirm
 	tput smcup
-	printf "%s\n\n${WHITE_BOLD}CONFIRM${COLOR_RESET} %s (${GREEN_NORMAL}y${COLOR_RESET}/${RED_NORMAL}n${COLOR_RESET})?\n> " "${1:-"<Missing Context Message >"}" "${2:-"<Missing Confirmation Context >"}"
+	printf "%s\n\n${WHITE_BOLD}CONFIRM${COLOR_RESET} %s (${GREEN_NORMAL}y${COLOR_RESET}/${RED_NORMAL}n${COLOR_RESET})?\n> " "${1:-"<Missing Context Message >"}" "${2-"<Missing Confirmation Context >"}"
 	stty raw -echo
 	confirm=$(dd bs=1 count=1 2>/dev/null)
 	stty sane
