@@ -69,6 +69,14 @@ valid_emojis=("👍:THUMBS_UP" "👎:THUMBS_DOWN" "😄:LAUGH" "🎉:HOORAY" "�
 GH_ADD_REACTION=$'gh api graphql --silent --raw-field query=\'mutation($id: ID! $emoji: ReactionContent! ) { addReaction(input: {subjectId: $id content: $emoji }) { clientMutationId }}\''
 GH_REMOVE_REACTION=$'gh api graphql --silent --raw-field query=\'mutation($id: ID! $emoji: ReactionContent! ) { removeReaction(input: {subjectId: $id content: $emoji }) { clientMutationId }}\''
 
+# <--------------- save/ restore terminal state ( needed for '--no-clear') ---------------- >
+
+# Save the current terminal state
+tput smcup
+
+# Restore the terminal state
+trap 'tput rmcup' EXIT SIGHUP SIGINT
+
 # <--------------- HELPER FUNCTIONS ---------------- >
 
 _die_with_octocat() {
@@ -89,6 +97,9 @@ _fzf_basic_options() {
 	# Hint: tablerow truncates the table columns to fit the entire table in the current terminal window.
 	# The workaround to avoid the truncation is to force a really wide terminal with GH_FORCE_TTY=10000.
 	# IMPORTNAT: anything after "$@" will overwrite options in the actual command
+	# NOTE: The '--no-clear' option is deprecated , but allows smoother switching between
+	# commands, some text remains visible from  a prompt after terminating is mitigated by
+	# saving/restoring terminal state.
 	SHELL="bash" GH_FORCE_TTY=10000 fzf -- \
 		--header '' \
 		--delimiter '\s+' \
@@ -96,6 +107,7 @@ _fzf_basic_options() {
 		"$@" \
 		--ansi --layout reverse --info inline --no-multi --height 100% \
 		--ellipsis '' --border horizontal \
+		--no-clear \
 		--no-separator --print-query \
 		--preview-window "$PREVIEW_WINDOW_VISIBILITY:wrap:right:65%:border-left" \
 		--bind 'btab:change-preview-window(50%:nohidden|65%:down:nohidden:border-top|nohidden)'
