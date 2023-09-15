@@ -1203,8 +1203,10 @@ while [ $# -gt 0 ]; do
 				elif [[ $(wc -l <<<"$remote_choice") -eq 1 ]]; then
 					OWNER_REPO_NAME="$remote_choice"
 				elif [[ $(wc -l <<<"$remote_choice") -gt 1 ]]; then
+					# an empty lines is added because of '--print-query'
 					OWNER_REPO_NAME="$(_fzf_basic_options <<<"$remote_choice" \
-						--header "For which repository would you like to see Workflow Runs ?")"
+						--header "For which repository would you like to see Workflow Runs ?" |
+						tr -d '\n')"
 				fi
 			fi
 			fzf_workflow_run_function
