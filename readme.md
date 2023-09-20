@@ -4,7 +4,37 @@
 
 Drop an emoji, write comments, star repositories, check workflow progress, browse issue trackers, search for repositories, ... all interactively by combining `gh` with `fzf`.
 
-![](https://user-images.githubusercontent.com/92653266/210178720-24bc78ef-5ae6-414c-8007-862a2a8f087e.gif)
+
+```mermaid
+%% GitHub seems to not display fontawesome icons
+%% https://fontawesome.com/search
+%% https://mermaid.js.org/syntax/flowchart.html#basic-support-for-fontawesome
+
+flowchart LR
+    subgraph Helper_Keys[ ]
+        Help([fa:fa-circle-question ? ᐧ Help])
+        ESC([fa:fa-arrow-right-from-bracket esc ᐧ Quit])
+    end
+    subgraph Overview[ ]
+        direction LR
+        Search([fa:fa-magnifying-glass Search]) -->|shift+left| Stars([fa:fa-user Stars])
+        Stars-->|shift+right| Search
+        Search -->|shift+right| Issues([fa:fa-circle-dot Issues])
+        Issues -->|shift+left| Search
+        subgraph Issue_and_PR[ ]
+            Issues --> |shift+right|PullRequests([fa:fa-code-pull-request Pull Requests])
+            PullRequests --> |shift+left| Issues
+        end
+        Issue_and_PR  -->|enter| Comments([fa:fa-comments Comments])  -->|esc| Issue_and_PR
+        Workflows([fa:fa-circle-play Workflow Runs]) -->|shift+left| PullRequests
+        PullRequests -->|shift+right| Workflows
+    end
+
+linkStyle default stroke-width:0.4px
+classDef Subgraph_Empty_Style  fill:transparent,stroke-width:0px
+class Overview,Helper_Keys Subgraph_Empty_Style
+style Issue_and_PR fill:transparent,stroke-width:0.5px,stroke:#5b387c90
+```
 
 </div>
 
@@ -44,40 +74,6 @@ gh look [Command] [Flags] [Search term]
 | st, star  | List Starred Repositories      | gh look star -u ashtom                |
 
 - see available `Flags` for each command with `gh look [Command] --help` or interactively with <kbd>?</kbd>
-
-### Hotkeys
-- switch between commands with <kbd>shift+left</kbd>/<kbd>shift+right</kbd>
-
-```mermaid
-%% GitHub seems to not display fontawesome icons
-%% https://fontawesome.com/search
-%% https://mermaid.js.org/syntax/flowchart.html#basic-support-for-fontawesome
-
-flowchart LR
-    subgraph Helper_Keys[ ]
-        Help([fa:fa-circle-question ? ᐧ Help])
-        ESC([fa:fa-arrow-right-from-bracket esc ᐧ Quit])
-    end
-    subgraph Overview[ ]
-        direction LR
-        Search([fa:fa-magnifying-glass Search]) -->|shift+left| Stars([fa:fa-user Stars])
-        Stars-->|shift+right| Search
-        Search -->|shift+right| Issues([fa:fa-circle-dot Issues])
-        Issues -->|shift+left| Search
-        subgraph Issue_and_PR[ ]
-            Issues --> |shift+right|PullRequests([fa:fa-code-pull-request Pull Requests])
-            PullRequests --> |shift+left| Issues
-        end
-        Issue_and_PR  -->|enter| Comments([fa:fa-comments Comments])  -->|esc| Issue_and_PR
-        Workflows([fa:fa-circle-play Workflow Runs]) -->|shift+left| PullRequests
-        PullRequests -->|shift+right| Workflows
-    end
-
-linkStyle default stroke-width:0.4px
-classDef Subgraph_Empty_Style  fill:transparent,stroke-width:0px
-class Overview,Helper_Keys Subgraph_Empty_Style
-style Issue_and_PR fill:transparent,stroke-width:0.5px,stroke:#5b387c90
-```
 
 ---
 
