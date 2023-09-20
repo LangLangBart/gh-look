@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
-set -euo pipefail
-# -e : immediately exit if any command has a non-zero exit status.
-# -u : program to immediately exit on references for any variable you haven't previously defined
-# -o pipefail : any command in a pipeline that fails the return code will be used as the return code of the whole pipeline
+set -o errexit -o nounset -o pipefail
+# https://www.gnu.org/software/bash/manual/bash.html#The-Set-Builtin
 
 # <------------------- TODOs -------------------- >
 
