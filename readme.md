@@ -78,24 +78,22 @@ gh look [Command] [Flags] [Search term]
 ---
 
 ## 💪 Contributing
-Routine code checks are handled with the [pre-commit](https://github.com/pre-commit/pre-commit) hook, customizations are done in the [.pre-commit-config.yaml](.pre-commit-config.yaml).
 
-> *Pre-commit is a multi-language package manager for pre-commit hooks. You specify a list of hooks you want and **pre-commit manages the installation and execution** of any hook written in any language before every commit. Source: [pre-commit introduction](https://pre-commit.com/#introduction)*
+> [!NOTE]
+> _Pre-commit is a multi-language package manager for pre-commit hooks. You specify a list_
+> _of hooks you want and **pre-commit manages the installation and execution** of any hook_
+> _written in any language before every commit._ **Source:** [pre-commit
+> introduction](https://pre-commit.com/#introduction)
 
-```zsh
-# install through homebrew or pip
-brew pre-commit
-pip install pre-commit
+```sh
+brew install pre-commit
 
 # install the git hook scripts
 pre-commit install --hook-type commit-msg --hook-type pre-commit
 # pre-commit installed at .git/hooks/commit-msg
 # pre-commit installed at .git/hooks/pre-commit
-
-# hook location
-.git/hooks/pre-commit
-.git/hooks/commit-msg
 ```
+
 
 ---
 
