@@ -906,9 +906,9 @@ EOF
 }
 
 fzf_search_function() {
-	GH_SEARCH_COMMAND=$'gh api graphql --raw-field query=\'query($filter: String!) { search(query: $filter, type: REPOSITORY, first: 25) { repositoryCount nodes { ... on Repository {description isFork name owner {login} primaryLanguage {name} defaultBranchRef { target { ... on Commit { history(first: 1) { nodes { committedDate }}}}} stargazerCount viewerHasStarred}}}}\' --template=\'
+	GH_SEARCH_COMMAND=$'gh api graphql --raw-field query=\'query($filter: String!) { search(query: $filter, type: REPOSITORY, first: 15) { repositoryCount nodes { ... on Repository {description isFork name owner {login} primaryLanguage {name} defaultBranchRef { target { ... on Commit { history(first: 1) { nodes { committedDate }}}}} stargazerCount viewerHasStarred}}}}\' --template=\'
 		{{- $limitCount := .data.search.repositoryCount -}}
-			{{- if gt .data.search.repositoryCount 25.0 -}}{{- $limitCount = 25.0 -}}{{- end -}}
+			{{- if gt .data.search.repositoryCount 15.0 -}}{{- $limitCount = 15.0 -}}{{- end -}}
 		{{- tablerow (printf "%.0f of ∑ %.0f Repos" $limitCount .data.search.repositoryCount | color "yellow") ("|" | color "white") ("? Help · esc Quit" | color "blue") -}}{{- tablerender -}}
 		{{- tablerow "" -}}{{- tablerender -}}
 		{{- $headerColor := "blue+b" -}}
