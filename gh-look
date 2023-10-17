@@ -374,11 +374,11 @@ ${WHITE_BOLD}Hotkeys${COLOR_RESET}
   ${GREEN_NORMAL}tab      ${COLOR_RESET}  Toggle preview
   ${GREEN_NORMAL}shift+tab${COLOR_RESET}  Change preview window size
   ${GREEN_NORMAL}ctrl+b   ${COLOR_RESET}  Browser
-  ${GREEN_NORMAL}ctrl+k   ${COLOR_RESET}  Delete the comment after confirmation
+  ${GREEN_NORMAL}ctrl+g   ${COLOR_RESET}  Write a comment
   ${GREEN_NORMAL}ctrl+n   ${COLOR_RESET}  New Issue
   ${GREEN_NORMAL}ctrl+t   ${COLOR_RESET}  React with $(_emoji_from_name "$REACTION_EMOJI") emoji
   ${GREEN_NORMAL}ctrl+u   ${COLOR_RESET}  Undo the $(_emoji_from_name "$REACTION_EMOJI") emoji reaction
-  ${GREEN_NORMAL}ctrl+x   ${COLOR_RESET}  Write a comment
+  ${GREEN_NORMAL}ctrl+x   ${COLOR_RESET}  Delete the comment after confirmation
   ${GREEN_NORMAL}esc      ${COLOR_RESET}  Return to Issue list
 EOF
 }
@@ -428,7 +428,7 @@ fzf_issue_comment_function() {
 		--bind "ctrl-b:execute-silent(python -m webbrowser https://github.com/$OWNER_REPO_NAME/issues/$TICKET_NUMBER#issuecomment-{2})" \
 		--bind "ctrl-t:execute-silent($GH_ADD_REACTION --raw-field id={1} --raw-field emoji=$REACTION_EMOJI)+reload-sync:$GH_ISSUE_COMMENTS_COMMAND --raw-field owner=${OWNER_REPO_NAME%/*} --raw-field name=${OWNER_REPO_NAME#*/} --field number=$TICKET_NUMBER || true" \
 		--bind "ctrl-u:execute-silent($GH_REMOVE_REACTION --raw-field id={1} --raw-field emoji=$REACTION_EMOJI)+reload-sync:$GH_ISSUE_COMMENTS_COMMAND --raw-field owner=${OWNER_REPO_NAME%/*} --raw-field name=${OWNER_REPO_NAME#*/} --field number=$TICKET_NUMBER || true" \
-		--expect "ctrl-k,ctrl-n,ctrl-x,esc") || true
+		--expect "ctrl-g,ctrl-n,ctrl-x,esc") || true
 
 	printed_query="$(sed 1q <<<"$OUTPUT_SELECTION")"
 	expected_key="$(sed '1d;3d' <<<"$OUTPUT_SELECTION")"
@@ -437,7 +437,20 @@ fzf_issue_comment_function() {
 	# reset the variable
 	OUTPUT_SELECTION=""
 	case "$expected_key" in
-		ctrl-k)
+		ctrl-g)
+			gh issue comment "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME" || true
+			_load_indicator
+			INITIAL_COMMENT_QUERY="$printed_query"
+			fzf_issue_comment_function 0s
+			;;
+
+		ctrl-n)
+			gh issue create --repo "$OWNER_REPO_NAME" || true
+			_load_indicator
+			INITIAL_QUERY="$printed_query"
+			fzf_issue_function 0s
+			;;
+		ctrl-x)
 			check_viewer_permission=$(
 				gh api graphql --raw-field id="$output_id" \
 					--raw-field query=$'query ($id: ID!) { node(id: $id) { ... on IssueComment { viewerCanDelete }}}' \
@@ -454,18 +467,6 @@ fzf_issue_comment_function() {
 			else
 				_load_indicator $'🛑 Missing permissions to delete this comment!\nRestarting'
 			fi
-			INITIAL_COMMENT_QUERY="$printed_query"
-			fzf_issue_comment_function 0s
-			;;
-		ctrl-n)
-			gh issue create --repo "$OWNER_REPO_NAME" || true
-			_load_indicator
-			INITIAL_QUERY="$printed_query"
-			fzf_issue_function 0s
-			;;
-		ctrl-x)
-			gh issue comment "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME" || true
-			_load_indicator
 			INITIAL_COMMENT_QUERY="$printed_query"
 			fzf_issue_comment_function 0s
 			;;
@@ -783,10 +784,10 @@ ${WHITE_BOLD}Hotkeys${COLOR_RESET}
   ${GREEN_NORMAL}ctrl+a    ${COLOR_RESET}  Abort watch mode
   ${GREEN_NORMAL}ctrl+b    ${COLOR_RESET}  Browser
   ${GREEN_NORMAL}ctrl+d    ${COLOR_RESET}  Download attached artifacts
+  ${GREEN_NORMAL}ctrl+g    ${COLOR_RESET}  Cancel a Run
   ${GREEN_NORMAL}ctrl+f    ${COLOR_RESET}  See failed logs
-  ${GREEN_NORMAL}ctrl+k    ${COLOR_RESET}  Delete a Run
   ${GREEN_NORMAL}ctrl+o    ${COLOR_RESET}  Operate in watch mode 👀 update the list every ${UPDATE_TIME}s
-  ${GREEN_NORMAL}ctrl+x    ${COLOR_RESET}  Cancel a Run
+  ${GREEN_NORMAL}ctrl+x    ${COLOR_RESET}  Delete a Run
   ${GREEN_NORMAL}shift+left${COLOR_RESET}  Switch to Pull Requests
   ${GREEN_NORMAL}esc       ${COLOR_RESET}  Quit
 EOF
@@ -835,9 +836,9 @@ fzf_workflow_run_function() {
 		--bind "ctrl-a:unbind(load)+change-prompt($INITIAL_WORKFLOW_PROMPT > )+reload-sync:$GH_WORKFLOWS_COMMAND || true" \
 		--bind "ctrl-b:execute-silent:python -m webbrowser {2}" \
 		--bind "ctrl-d:become(gh run download {1} --repo $OWNER_REPO_NAME)+reload-sync:$GH_WORKFLOWS_COMMAND || true" \
-		--bind "ctrl-k:execute-silent(gh run delete {1} --repo $OWNER_REPO_NAME)+down+reload-sync:$GH_WORKFLOWS_COMMAND || true" \
+		--bind "ctrl-g:execute-silent(gh run cancel {1} --repo $OWNER_REPO_NAME)+down+reload-sync:$GH_WORKFLOWS_COMMAND || true" \
 		--bind "ctrl-o:rebind(load)+change-prompt(${GREEN_NORMAL}$INITIAL_WORKFLOW_PROMPT 👀 ${UPDATE_TIME}s > )+reload-sync:$GH_WORKFLOWS_COMMAND || true" \
-		--bind "ctrl-x:execute-silent(gh run cancel {1} --repo $OWNER_REPO_NAME)+down+reload-sync:$GH_WORKFLOWS_COMMAND || true" \
+		--bind "ctrl-x:execute-silent(gh run delete {1} --repo $OWNER_REPO_NAME)+down+reload-sync:$GH_WORKFLOWS_COMMAND || true" \
 		--expect "ctrl-f,enter,shift-left") || true
 
 	printed_query="$(sed 1q <<<"$OUTPUT_SELECTION")"
