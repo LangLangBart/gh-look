@@ -36,9 +36,8 @@ PREVIEW_WINDOW_VISIBILITY="hidden"
 INITIAL_QUERY=""
 INITIAL_COMMENT_QUERY=""
 OUTPUT_SELECTION=""
-# it can happen, if a user defined "LESS" with the "-F" flag in its shell setup, e.g. LESS="-FK -j.5"
-# it will overwrite "bat --pager 'less -R' --paging always".
-LANG_BAT_SETUP="bat --pager 'less -R' --paging always --color always --style plain --language"
+# resetting the '-F' option to its default setting with '-+F'
+LANG_BAT_SETUP="bat --pager 'less --clear-screen -+F -+X -R' --paging always --color always --style plain --language"
 
 # for better speed
 CACHE_TIME="20s"
