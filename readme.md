@@ -86,7 +86,8 @@ gh look [Command] [Flags] [Search term]
 > introduction](https://pre-commit.com/#introduction)
 
 ```sh
-brew install pre-commit
+# shellcheck and shfmt are necessary dependencies for one hook
+brew install pre-commit shellcheck shfmt
 
 # install the git hook scripts
 pre-commit install --hook-type commit-msg --hook-type pre-commit
