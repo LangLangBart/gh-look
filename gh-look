@@ -85,7 +85,7 @@ _version_number() {
 _fzf_basic_options() {
 	# Hint: tablerow truncates the table columns to fit the entire table in the current terminal window.
 	# The workaround to avoid the truncation is to force a really wide terminal with GH_FORCE_TTY=10000.
-	# IMPORTNAT: anything after "$@" will overwrite options in the actual command
+	# IMPORTANT: anything after "$@" will overwrite options in the actual command
 	SHELL="bash" GH_FORCE_TTY=10000 fzf -- \
 		--header '' \
 		--delimiter '\s+' \
