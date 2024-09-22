@@ -4,7 +4,6 @@
 
 Drop an emoji, write comments, star repositories, check workflow progress, browse issue trackers, search for repositories, ... all interactively by combining `gh` with `fzf`.
 
-
 ```mermaid
 %% GitHub seems to not display fontawesome icons
 %% https://fontawesome.com/search
@@ -86,15 +85,11 @@ gh look [Command] [Flags] [Search term]
 > introduction](https://pre-commit.com/#introduction)
 
 ```sh
-# shellcheck and shfmt are necessary dependencies for one hook
-brew install pre-commit shellcheck shfmt
-
 # install the git hook scripts
 pre-commit install --hook-type commit-msg --hook-type pre-commit
 # pre-commit installed at .git/hooks/commit-msg
 # pre-commit installed at .git/hooks/pre-commit
 ```
-
 
 ---
 
