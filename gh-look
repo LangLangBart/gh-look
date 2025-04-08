@@ -787,6 +787,7 @@ ${WHITE_BOLD}Hotkeys${COLOR_RESET}
   ${GREEN_NORMAL}ctrl+f    ${COLOR_RESET}  See failed logs
   ${GREEN_NORMAL}ctrl+o    ${COLOR_RESET}  Operate in watch mode 👀 update the list every ${UPDATE_TIME}s
   ${GREEN_NORMAL}ctrl+x    ${COLOR_RESET}  Delete a Run
+  ${GREEN_NORMAL}ctrl+y    ${COLOR_RESET}  Copy the ID of the Run (macOS only)
   ${GREEN_NORMAL}shift+left${COLOR_RESET}  Switch to Pull Requests
   ${GREEN_NORMAL}esc       ${COLOR_RESET}  Quit
 EOF
@@ -838,6 +839,7 @@ fzf_workflow_run_function() {
 		--bind "ctrl-g:execute-silent(gh run cancel {1} --repo $OWNER_REPO_NAME)+down+reload-sync:$GH_WORKFLOWS_COMMAND || true" \
 		--bind "ctrl-o:rebind(load)+change-prompt(${GREEN_NORMAL}$INITIAL_WORKFLOW_PROMPT 👀 ${UPDATE_TIME}s > )+reload-sync:$GH_WORKFLOWS_COMMAND || true" \
 		--bind "ctrl-x:execute-silent(gh run delete {1} --repo $OWNER_REPO_NAME)+down+reload-sync:$GH_WORKFLOWS_COMMAND || true" \
+		--bind "ctrl-y:execute:printf 'gh run view --log {1} --repo %s' '$OWNER_REPO_NAME' | pbcopy" \
 		--expect "ctrl-f,enter,shift-left") || true
 
 	printed_query="$(sed 1q <<<"$OUTPUT_SELECTION")"
