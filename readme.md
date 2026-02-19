@@ -1,6 +1,6 @@
-<div align="center">
+<h1 align="center">gh look</h1>
 
-# gh look
+<div align="center">
 
 Drop an emoji, write comments, star repositories, check workflow progress, browse issue trackers, search for repositories, ... all interactively by combining `gh` with `fzf`.
 
@@ -40,6 +40,7 @@ style Issue_and_PR fill:transparent,stroke-width:0.5px,stroke:#5b387c90
 ---
 
 ## 💻 Requirements
+
 - [bat](https://github.com/sharkdp/bat#installation) - preview looks better
 - [Fuzzy Finder (fzf)](https://github.com/junegunn/fzf#installation) - allow for interaction with listed data
 - [GitHub command line tool (gh)](https://github.com/cli/cli#installation) - get the data from Github
@@ -96,8 +97,10 @@ pre-commit install --hook-type commit-msg --hook-type pre-commit
 ## 💁 FAQ
 
 ### Strange icons
+
 - [NERD FONT](https://www.nerdfonts.com/cheat-sheet) icons are being used. If you see some `strange` icons, follow the steps in the link to install a better font: [powerlevel10k#fonts](https://github.com/romkatv/powerlevel10k#fonts)
 
 ### Ordering options
+
 - to change the order in which elements are listed see for details: [GitHub Docs - Searching on GitHub](https://docs.github.com/en/search-github/searching-on-github)
   - Valid Ordering options: {author-date,committer-date,created,interactions,reactions,updated}-{desc,asc}
