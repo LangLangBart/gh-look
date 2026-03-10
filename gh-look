@@ -219,7 +219,7 @@ fzf_issue_function() {
 			{{- tablerow "NODE_ID_HIDDEN" ("ISSUE" | color $headerColor) ("AUTHOR" | color $headerColor) ("LAST UPDATE" | color $headerColor) "💬" "📣" ("TITLE" | color $headerColor) -}}
 		{{- range .data.search.nodes -}}
 			{{- $stateIssueColor := "green" -}}
-				{{- if and (eq .state "CLOSED") (ne .stateReason "COMPLETED") -}}{{- $stateIssueColor = "gray" -}}
+				{{- if and (eq .state "CLOSED") (ne .stateReason "COMPLETED") -}}{{- $stateIssueColor = "gray+s" -}}
 				{{- else if eq .state "CLOSED" -}}{{- $stateIssueColor = "93" -}}{{- end -}}
 			{{- $author := "[DELETED_USER]" -}}
 				{{- if .author -}}{{- $author = .author.login -}}{{- end -}}
