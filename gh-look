@@ -1089,7 +1089,7 @@ else
 	if ! command -v python >/dev/null; then
 		_die_with_octocat "Python was not found." "https://www.python.org/"
 	fi
-	############# Check needed scratch file exits and writeable #############
+	############# Check needed scratch file exits and writable #############
 	# The purpose of this file is to signal to the fzf which search mode is active and remember the last one.
 	# This allows switching between "Open" and "All issues/ prs" and active search within the selected category.
 	SCRATCH_FILE="${BASH_SOURCE%/*}/.trashme"
