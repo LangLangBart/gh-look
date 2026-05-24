@@ -39,10 +39,11 @@ OUTPUT_SELECTION=""
 LANG_BAT_SETUP="bat --pager 'less --clear-screen -+F -+X -R' --paging always --color always --style plain --language"
 
 # for better speed
-CACHE_TIME="20s"
-# minimum required fzf version, using "become(...)"
-# https://github.com/junegunn/fzf/releases
-MIN_FZF_VERSION="0.45.0"
+DEFAULT_CACHE_TIME="60s"
+: "${CACHE_TIME:=$DEFAULT_CACHE_TIME}"
+# minimum required fzf version, using "every(n):"
+# https://github.com/junegunn/fzf/releases/tag/v0.73.0
+MIN_FZF_VERSION="0.73.0"
 # workflow runs
 UPDATE_TIME=10
 EXCLUDE_PULL_REQUESTS=true
@@ -173,7 +174,7 @@ ${WHITE_BOLD}Usage${COLOR_RESET}
 
 ${WHITE_BOLD}Flags${COLOR_RESET}
   ${GREEN_NORMAL}<none>${COLOR_RESET}  List Issues from current directory
-  ${GREEN_NORMAL}-c    ${COLOR_RESET}  Cache the response, for example "30s", "15m", "1h" (default: 20s)
+  ${GREEN_NORMAL}-c    ${COLOR_RESET}  Cache the response, for example "30s", "15m", "1h" (default: ${DEFAULT_CACHE_TIME})
   ${GREEN_NORMAL}-e    ${COLOR_RESET}  Emoji to make a reaction (default: 👍)
   ${GREEN_NORMAL}-h    ${COLOR_RESET}  Help
   ${GREEN_NORMAL}-o    ${COLOR_RESET}  sorting order of Issues (default: created-desc)
@@ -490,7 +491,7 @@ ${WHITE_BOLD}Usage${COLOR_RESET}
 
 ${WHITE_BOLD}Flags${COLOR_RESET}
   ${GREEN_NORMAL}<none>${COLOR_RESET}  List Pull Requests from current directory
-  ${GREEN_NORMAL}-c    ${COLOR_RESET}  Cache the response, for example "30s", "15m", "1h" (default: 20s)
+  ${GREEN_NORMAL}-c    ${COLOR_RESET}  Cache the response, for example "30s", "15m", "1h" (default: ${DEFAULT_CACHE_TIME})
   ${GREEN_NORMAL}-e    ${COLOR_RESET}  Emoji to make a reaction (default: 👍 )
   ${GREEN_NORMAL}-h    ${COLOR_RESET}  Help
   ${GREEN_NORMAL}-o    ${COLOR_RESET}  sorting order of Pull Requests (default: created-desc)
@@ -788,12 +789,12 @@ ${WHITE_BOLD}Hotkeys${COLOR_RESET}
   ${GREEN_NORMAL}enter     ${COLOR_RESET}  See logs, press "q" to return
   ${GREEN_NORMAL}tab       ${COLOR_RESET}  Toggle preview
   ${GREEN_NORMAL}shift+tab ${COLOR_RESET}  Change preview window size
-  ${GREEN_NORMAL}ctrl+a    ${COLOR_RESET}  Abort watch mode
   ${GREEN_NORMAL}ctrl+b    ${COLOR_RESET}  Browser
   ${GREEN_NORMAL}ctrl+d    ${COLOR_RESET}  Download attached artifacts
   ${GREEN_NORMAL}ctrl+g    ${COLOR_RESET}  Cancel a Run
   ${GREEN_NORMAL}ctrl+f    ${COLOR_RESET}  See failed logs
-  ${GREEN_NORMAL}ctrl+o    ${COLOR_RESET}  Operate in watch mode 👀 update the list every ${UPDATE_TIME}s
+  ${GREEN_NORMAL}ctrl+r    ${COLOR_RESET}  Reload
+  ${GREEN_NORMAL}ctrl+t    ${COLOR_RESET}  Toggle watch mode 👀 update the list every ${UPDATE_TIME}s
   ${GREEN_NORMAL}ctrl+x    ${COLOR_RESET}  Delete a Run
   ${GREEN_NORMAL}ctrl+y    ${COLOR_RESET}  Copy the ID of the Run (macOS only)
   ${GREEN_NORMAL}shift+left${COLOR_RESET}  Switch to Pull Requests
@@ -803,7 +804,7 @@ EOF
 
 fzf_workflow_run_function() {
   INITIAL_WORKFLOW_PROMPT="Workflow Runs  $(printf "[%s]" "$OWNER_REPO_NAME")"
-  GH_WORKFLOWS_COMMAND="gh api --cache ${UPDATE_TIME}s --method GET --raw-field exclude_pull_requests=$EXCLUDE_PULL_REQUESTS --field per_page=$NUMBER_WORKFLOW_RUN_LIST repos/$OWNER_REPO_NAME/actions/runs "$' --jq \'
+  GH_WORKFLOWS_COMMAND="gh api --cache 0s --method GET --raw-field exclude_pull_requests=$EXCLUDE_PULL_REQUESTS --field per_page=$NUMBER_WORKFLOW_RUN_LIST repos/$OWNER_REPO_NAME/actions/runs "$' --jq \'
     def colors: {
       "gray": "\u001b[90m",
       "red": "\u001b[31m",
@@ -831,22 +832,27 @@ fzf_workflow_run_function() {
       .display_title]
     ) | @tsv\' | column -ts "\t"'
 
-  OUTPUT_SELECTION=$(FZF_DEFAULT_COMMAND="$GH_WORKFLOWS_COMMAND" \
+  OUTPUT_SELECTION=$(FZF_DEFAULT_COMMAND="${GH_WORKFLOWS_COMMAND}" \
     _fzf_basic_options --header-lines 1 --with-nth 4.. \
     --header $'\n? Help · esc Quit\n\n' \
-    --prompt "${GREEN_NORMAL}$INITIAL_WORKFLOW_PROMPT 👀 ${UPDATE_TIME}s > " \
+    --prompt "${GREEN_NORMAL}${INITIAL_WORKFLOW_PROMPT} 👀 ${UPDATE_TIME}s > " \
     --query "$INITIAL_QUERY" \
-    --preview "gh run view {1} --repo $OWNER_REPO_NAME" \
-    --bind "tab:toggle-preview+change-preview:gh run view {1} --repo $OWNER_REPO_NAME" \
+    --preview "gh run view {1} --repo ${OWNER_REPO_NAME}" \
+    --bind "tab:toggle-preview+change-preview:gh run view {1} --repo ${OWNER_REPO_NAME}" \
     --bind "?:toggle-preview+change-preview:echo '$(help_workflow_run_function)'" \
-    --bind "load:reload-sync:sleep $UPDATE_TIME;$GH_WORKFLOWS_COMMAND || true" \
-    --bind "ctrl-a:unbind(load)+change-prompt($INITIAL_WORKFLOW_PROMPT > )+reload-sync:$GH_WORKFLOWS_COMMAND || true" \
+    --bind "start,every(${UPDATE_TIME}):reload-sync:${GH_WORKFLOWS_COMMAND} || true" \
     --bind "ctrl-b:execute-silent:python -m webbrowser {2}" \
-    --bind "ctrl-d:become(gh run download {1} --repo $OWNER_REPO_NAME)+reload-sync:$GH_WORKFLOWS_COMMAND || true" \
-    --bind "ctrl-g:execute-silent(gh run cancel {1} --repo $OWNER_REPO_NAME)+down+reload-sync:$GH_WORKFLOWS_COMMAND || true" \
-    --bind "ctrl-o:rebind(load)+change-prompt(${GREEN_NORMAL}$INITIAL_WORKFLOW_PROMPT 👀 ${UPDATE_TIME}s > )+reload-sync:$GH_WORKFLOWS_COMMAND || true" \
-    --bind "ctrl-x:execute-silent(gh run delete {1} --repo $OWNER_REPO_NAME)+down+reload-sync:$GH_WORKFLOWS_COMMAND || true" \
-    --bind "ctrl-y:execute:printf 'gh run view --log {1} --repo %s' '$OWNER_REPO_NAME' | pbcopy" \
+    --bind "ctrl-d:become(gh run download {1} --repo ${OWNER_REPO_NAME})+reload-sync:${GH_WORKFLOWS_COMMAND} || true" \
+    --bind "ctrl-g:execute-silent(gh run cancel {1} --repo ${OWNER_REPO_NAME})+down+reload-sync:${GH_WORKFLOWS_COMMAND} || true" \
+    --bind "ctrl-r:reload-sync:${GH_WORKFLOWS_COMMAND} || true" \
+    --bind "ctrl-t:transform:
+			if [[ \$FZF_PROMPT == *👀* ]]; then
+				echo 'unbind(every(${UPDATE_TIME}))+change-prompt:${INITIAL_WORKFLOW_PROMPT} > '
+			else
+				echo 'rebind(every(${UPDATE_TIME}))+change-prompt:${GREEN_NORMAL}${INITIAL_WORKFLOW_PROMPT} 👀 ${UPDATE_TIME}s > '
+			fi" \
+    --bind "ctrl-x:execute-silent(gh run delete {1} --repo ${OWNER_REPO_NAME})+down+reload-sync:${GH_WORKFLOWS_COMMAND} || true" \
+    --bind "ctrl-y:execute:printf 'gh run view --log {1} --repo %s' '${OWNER_REPO_NAME}' | pbcopy" \
     --expect "ctrl-f,enter,shift-left") || true
 
   printed_query="$(sed 1q <<<"$OUTPUT_SELECTION")"
@@ -891,7 +897,7 @@ ${WHITE_BOLD}Usage${COLOR_RESET}
 
 ${WHITE_BOLD}Flags${COLOR_RESET}
   ${GREEN_NORMAL}<term>${COLOR_RESET}  Search for GitHub repos
-  ${GREEN_NORMAL}-c    ${COLOR_RESET}  Cache the response, for example "30s", "15m", "1h" (default: 20s)
+  ${GREEN_NORMAL}-c    ${COLOR_RESET}  Cache the response, for example "30s", "15m", "1h" (default: ${DEFAULT_CACHE_TIME})
   ${GREEN_NORMAL}-h    ${COLOR_RESET}  Help
   ${GREEN_NORMAL}-w    ${COLOR_RESET}  Display the preview window upon start (default: hidden)
 
@@ -990,7 +996,7 @@ ${WHITE_BOLD}Usage${COLOR_RESET}
 
 ${WHITE_BOLD}Flags${COLOR_RESET}
   ${GREEN_NORMAL}<none>${COLOR_RESET}  List your stars (sorted by the time the user set the star)
-  ${GREEN_NORMAL}-c    ${COLOR_RESET}  Cache the response, for example "30s", "15m", "1h" (default: 20s)
+  ${GREEN_NORMAL}-c    ${COLOR_RESET}  Cache the response, for example "30s", "15m", "1h" (default: ${DEFAULT_CACHE_TIME})
   ${GREEN_NORMAL}-h    ${COLOR_RESET}  Help
   ${GREEN_NORMAL}-u    ${COLOR_RESET}  List stars of another user
   ${GREEN_NORMAL}-w    ${COLOR_RESET}  Display the preview window upon start (default: hidden)
