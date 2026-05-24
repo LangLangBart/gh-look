@@ -846,11 +846,11 @@ fzf_workflow_run_function() {
     --bind "ctrl-g:execute-silent(gh run cancel {1} --repo ${OWNER_REPO_NAME})+down+reload-sync:${GH_WORKFLOWS_COMMAND} || true" \
     --bind "ctrl-r:reload-sync:${GH_WORKFLOWS_COMMAND} || true" \
     --bind "ctrl-t:transform:
-			if [[ \$FZF_PROMPT == *👀* ]]; then
-				echo 'unbind(every(${UPDATE_TIME}))+change-prompt:${INITIAL_WORKFLOW_PROMPT} > '
-			else
-				echo 'rebind(every(${UPDATE_TIME}))+change-prompt:${GREEN_NORMAL}${INITIAL_WORKFLOW_PROMPT} 👀 ${UPDATE_TIME}s > '
-			fi" \
+      if [[ \$FZF_PROMPT == *👀* ]]; then
+        echo 'unbind(every(${UPDATE_TIME}))+change-prompt:${INITIAL_WORKFLOW_PROMPT} > '
+      else
+        echo 'rebind(every(${UPDATE_TIME}))+change-prompt:${GREEN_NORMAL}${INITIAL_WORKFLOW_PROMPT} 👀 ${UPDATE_TIME}s > '
+      fi" \
     --bind "ctrl-x:execute-silent(gh run delete {1} --repo ${OWNER_REPO_NAME})+down+reload-sync:${GH_WORKFLOWS_COMMAND} || true" \
     --bind "ctrl-y:execute:printf 'gh run view --log {1} --repo %s' '${OWNER_REPO_NAME}' | pbcopy" \
     --expect "ctrl-f,enter,shift-left") || true
