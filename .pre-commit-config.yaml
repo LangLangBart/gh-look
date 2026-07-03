@@ -8,7 +8,7 @@ repos:
       - id: end-of-file-fixer
       - id: trailing-whitespace
   - repo: https://github.com/adhtruong/mirrors-typos
-    rev: v1.47.0
+    rev: v1.48.0
     hooks:
       - id: typos
         args: [--format, brief, --write-changes, --force-exclude]
@@ -19,7 +19,7 @@ repos:
         name: markdown link check
         args: [--quiet, --alive, '200,429']
   - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.48.0
+    rev: v0.49.0
     hooks:
       - id: markdownlint
         # Disable line-length/no-inline-html
@@ -44,7 +44,7 @@ repos:
     hooks:
       - id: yamlfix
   - repo: https://github.com/adhtruong/mirrors-typos
-    rev: v1.47.0
+    rev: v1.48.0
     hooks:
       - id: typos
         name: detect typos in commit message
@@ -64,7 +64,7 @@ repos:
         args: [--ignore, body-is-missing, --msg-filename]
         stages: [commit-msg]
   - repo: https://github.com/commitizen-tools/commitizen
-    rev: v4.16.3
+    rev: v4.16.4
     hooks:
       - id: commitizen
         name: check commit message structure

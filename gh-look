@@ -40,14 +40,15 @@ LANG_BAT_SETUP="bat --pager 'less --clear-screen -+F -+X -R' --paging always --c
 
 # for better speed
 DEFAULT_CACHE_TIME="60s"
-: "${CACHE_TIME:=$DEFAULT_CACHE_TIME}"
+CACHE_TIME=$DEFAULT_CACHE_TIME
+DEFAULT_NUMBER_WORKFLOW_RUN_LIST=35
+NUMBER_WORKFLOW_RUN_LIST=$DEFAULT_NUMBER_WORKFLOW_RUN_LIST
 # minimum required fzf version, using "every(n):"
 # https://github.com/junegunn/fzf/releases/tag/v0.73.0
 MIN_FZF_VERSION="0.73.0"
 # workflow runs
 UPDATE_TIME=10
 EXCLUDE_PULL_REQUESTS=true
-NUMBER_WORKFLOW_RUN_LIST=10
 # colors
 COLOR_RESET=$(tput sgr0)
 RED_NORMAL=$(tput setaf 1)
@@ -201,6 +202,7 @@ ${WHITE_BOLD}Hotkeys${COLOR_RESET}
   ${GREEN_NORMAL}ctrl+r     ${COLOR_RESET}  Reload
   ${GREEN_NORMAL}ctrl+t     ${COLOR_RESET}  Toggle $(_emoji_from_name "$REACTION_EMOJI") emoji reaction
   ${GREEN_NORMAL}ctrl+x     ${COLOR_RESET}  Write a comment
+  ${GREEN_NORMAL}ctrl+y     ${COLOR_RESET}  Copy URL to clipboard (macOS only)
   ${GREEN_NORMAL}shift+left ${COLOR_RESET}  Switch to Search
   ${GREEN_NORMAL}shift+right${COLOR_RESET}  Switch to Pull Requests
   ${GREEN_NORMAL}esc        ${COLOR_RESET}  Quit
@@ -261,6 +263,8 @@ fzf_issue_function() {
     --bind "ctrl-p:put(involves:@me)" \
     --bind "ctrl-r:reload-sync:(grep -q A <$SCRATCH_FILE && $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME \"{q} || $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME state:open \"{q}) || true" \
     --bind "ctrl-t:execute-silent($GH_CHECK_REACTION --jq '.data.node.reactionGroups[] | select(.content == \"$REACTION_EMOJI\") | .viewerHasReacted' | grep -q true && $GH_REMOVE_REACTION --raw-field id={1} --raw-field emoji=$REACTION_EMOJI || $GH_ADD_REACTION --raw-field id={1} --raw-field emoji=$REACTION_EMOJI)+reload-sync:(grep -q A <$SCRATCH_FILE && $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME \"{q} || $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME state:open \"{q}) || true" \
+    --bind "ctrl-y:execute-silent:printf 'https://github.com/$OWNER_REPO_NAME/issues/%s' {2} | tr -d '#' | pbcopy" \
+    --bind "ctrl-y:+transform-footer(pbpaste)+bg-cancel+bg-transform-footer:sleep 2" \
     --expect "ctrl-e,ctrl-g,ctrl-n,ctrl-x,enter,shift-left,shift-right") || true
 
   printed_query="$(sed 1q <<<"$OUTPUT_SELECTION")"
@@ -378,6 +382,7 @@ ${WHITE_BOLD}Hotkeys${COLOR_RESET}
   ${GREEN_NORMAL}ctrl+n   ${COLOR_RESET}  New Issue
   ${GREEN_NORMAL}ctrl+t   ${COLOR_RESET}  Toggle $(_emoji_from_name "$REACTION_EMOJI") emoji reaction
   ${GREEN_NORMAL}ctrl+x   ${COLOR_RESET}  Delete the comment after confirmation
+  ${GREEN_NORMAL}ctrl+y   ${COLOR_RESET}  Copy URL to clipboard (macOS only)
   ${GREEN_NORMAL}esc      ${COLOR_RESET}  Return to Issue list
 EOF
 }
@@ -433,6 +438,8 @@ fzf_issue_comment_function() {
     --bind "tab:toggle-preview+change-preview:$GH_COMMENTS_PREVIEW | $LANG_BAT_SETUP md" \
     --bind "ctrl-b:execute-silent(python -m webbrowser https://github.com/$OWNER_REPO_NAME/issues/$TICKET_NUMBER#issuecomment-{2})" \
     --bind "ctrl-t:execute-silent($GH_CHECK_REACTION --jq '.data.node.reactionGroups[] | select(.content == \"$REACTION_EMOJI\") | .viewerHasReacted' | grep -q true && $GH_REMOVE_REACTION --raw-field id={1} --raw-field emoji=$REACTION_EMOJI || $GH_ADD_REACTION --raw-field id={1} --raw-field emoji=$REACTION_EMOJI)+reload-sync:$GH_ISSUE_COMMENTS_COMMAND --raw-field owner=${OWNER_REPO_NAME%/*} --raw-field name=${OWNER_REPO_NAME#*/} --field number=$TICKET_NUMBER || true" \
+    --bind "ctrl-y:execute-silent:printf 'https://github.com/$OWNER_REPO_NAME/issues/$TICKET_NUMBER#issuecomment-%s' {2} | pbcopy" \
+    --bind "ctrl-y:+transform-footer(pbpaste)+bg-cancel+bg-transform-footer:sleep 2" \
     --expect "ctrl-g,ctrl-n,ctrl-x,esc") || true
 
   printed_query="$(sed 1q <<<"$OUTPUT_SELECTION")"
@@ -525,7 +532,8 @@ ${WHITE_BOLD}Hotkeys${COLOR_RESET}
   ${GREEN_NORMAL}ctrl+r     ${COLOR_RESET}  Reload
   ${GREEN_NORMAL}ctrl+t     ${COLOR_RESET}  Toggle $(_emoji_from_name "$REACTION_EMOJI") emoji reaction
   ${GREEN_NORMAL}ctrl+x     ${COLOR_RESET}  Write a comment
-  ${GREEN_NORMAL}ctrl+y     ${COLOR_RESET}  Checkout
+  ${GREEN_NORMAL}ctrl+y     ${COLOR_RESET}  Copy URL to clipboard (macOS only)
+  ${GREEN_NORMAL}ctrl+n     ${COLOR_RESET}  Checkout
   ${GREEN_NORMAL}shift+left ${COLOR_RESET}  Switch to Issues
   ${GREEN_NORMAL}shift+right${COLOR_RESET}  Switch to Workflow Runs
   ${GREEN_NORMAL}esc        ${COLOR_RESET}  Quit
@@ -604,7 +612,9 @@ fzf_pr_function() {
     --bind "ctrl-p:put(involves:@me)" \
     --bind "ctrl-r:reload-sync:(grep -q A <$SCRATCH_FILE && $GH_PR_COMMAND --raw-field filter=\"$SORTING_ORDER type:pr repo:$OWNER_REPO_NAME \"{q} || $GH_PR_COMMAND --raw-field filter=\"$SORTING_ORDER type:pr repo:$OWNER_REPO_NAME state:open \"{q}) || true" \
     --bind "ctrl-t:execute-silent($GH_CHECK_REACTION --jq '.data.node.reactionGroups[] | select(.content == \"$REACTION_EMOJI\") | .viewerHasReacted' | grep -q true && $GH_REMOVE_REACTION --raw-field id={1} --raw-field emoji=$REACTION_EMOJI || $GH_ADD_REACTION --raw-field id={1} --raw-field emoji=$REACTION_EMOJI)+reload-sync:(grep -q A <$SCRATCH_FILE && $GH_PR_COMMAND --raw-field filter=\"$SORTING_ORDER type:pr repo:$OWNER_REPO_NAME \"{q} || $GH_PR_COMMAND --raw-field filter=\"$SORTING_ORDER type:pr repo:$OWNER_REPO_NAME state:open \"{q}) || true" \
-    --expect "ctrl-e,ctrl-g,ctrl-x,ctrl-y,enter,shift-left,shift-right") || true
+    --bind "ctrl-y:execute-silent:printf 'https://github.com/$OWNER_REPO_NAME/pull/%s' {2} | tr -d '#' | pbcopy" \
+    --bind "ctrl-y:+transform-footer(pbpaste)+bg-cancel+bg-transform-footer:sleep 2" \
+    --expect "ctrl-e,ctrl-g,ctrl-n,ctrl-x,enter,shift-left,shift-right") || true
 
   printed_query="$(sed 1q <<<"$OUTPUT_SELECTION")"
   expected_key="$(sed '1d;3d' <<<"$OUTPUT_SELECTION")"
@@ -629,7 +639,7 @@ fzf_pr_function() {
       INITIAL_QUERY="$printed_query"
       fzf_pr_function 0s
       ;;
-    ctrl-y)
+    ctrl-n)
       gh pr checkout "$TICKET_NUMBER" --repo "$OWNER_REPO_NAME"
       exit 0
       ;;
@@ -666,6 +676,7 @@ ${WHITE_BOLD}Hotkeys${COLOR_RESET}
   ${GREEN_NORMAL}ctrl+d   ${COLOR_RESET}  Toggle diff
   ${GREEN_NORMAL}ctrl+t   ${COLOR_RESET}  Toggle $(_emoji_from_name "$REACTION_EMOJI") emoji reaction
   ${GREEN_NORMAL}ctrl+x   ${COLOR_RESET}  Write a comment
+  ${GREEN_NORMAL}ctrl+y   ${COLOR_RESET}  Copy URL to clipboard (macOS only)
   ${GREEN_NORMAL}esc      ${COLOR_RESET}  Return to Pull Request list
 EOF
 }
@@ -740,6 +751,8 @@ fzf_pr_comment_function() {
     --bind "ctrl-b:execute-silent(python -m webbrowser https://github.com/$OWNER_REPO_NAME/pull/$TICKET_NUMBER#issuecomment-{2})" \
     --bind "ctrl-d:toggle-preview+change-preview(gh pr diff $TICKET_NUMBER --repo $OWNER_REPO_NAME"$' | if type -p delta >/dev/null; then delta --width ${FZF_PREVIEW_COLUMNS:-$COLUMNS}; else cat; fi)' \
     --bind "ctrl-t:execute-silent($GH_CHECK_REACTION --jq '.data.node.reactionGroups[] | select(.content == \"$REACTION_EMOJI\") | .viewerHasReacted' | grep -q true && $GH_REMOVE_REACTION --raw-field id={1} --raw-field emoji=$REACTION_EMOJI || $GH_ADD_REACTION --raw-field id={1} --raw-field emoji=$REACTION_EMOJI)+reload-sync:$GH_PR_COMMENTS_COMMAND --raw-field owner=${OWNER_REPO_NAME%/*} --raw-field name=${OWNER_REPO_NAME#*/} --field number=$TICKET_NUMBER || true" \
+    --bind "ctrl-y:execute-silent:printf 'https://github.com/$OWNER_REPO_NAME/pull/$TICKET_NUMBER#issuecomment-%s' {2} | pbcopy" \
+    --bind "ctrl-y:+transform-footer(pbpaste)+bg-cancel+bg-transform-footer:sleep 2" \
     --expect "ctrl-x,esc") || true
 
   printed_query="$(sed 1q <<<"$OUTPUT_SELECTION")"
@@ -770,7 +783,7 @@ ${WHITE_BOLD}Flags${COLOR_RESET}
   ${GREEN_NORMAL}<none>${COLOR_RESET}  List Workflow Runs from current directory
   ${GREEN_NORMAL}-h    ${COLOR_RESET}  Help
   ${GREEN_NORMAL}-i    ${COLOR_RESET}  Interval for updating the list (default: 10)
-  ${GREEN_NORMAL}-n    ${COLOR_RESET}  Number of listed Runs (default: 10, max: 100)
+  ${GREEN_NORMAL}-n    ${COLOR_RESET}  Number of listed Runs (default: ${DEFAULT_NUMBER_WORKFLOW_RUN_LIST}, max: 100)
   ${GREEN_NORMAL}-p    ${COLOR_RESET}  Pull Requests are included in the list (default: not included)
   ${GREEN_NORMAL}-r    ${COLOR_RESET}  Specify a repository (form: OWNER/REPO)
   ${GREEN_NORMAL}-w    ${COLOR_RESET}  Display the preview window upon start (default: hidden)
@@ -790,13 +803,13 @@ ${WHITE_BOLD}Hotkeys${COLOR_RESET}
   ${GREEN_NORMAL}tab       ${COLOR_RESET}  Toggle preview
   ${GREEN_NORMAL}shift+tab ${COLOR_RESET}  Change preview window size
   ${GREEN_NORMAL}ctrl+b    ${COLOR_RESET}  Browser
-  ${GREEN_NORMAL}ctrl+d    ${COLOR_RESET}  Download attached artifacts
+  ${GREEN_NORMAL}ctrl+d    ${COLOR_RESET}  Delete a Run
   ${GREEN_NORMAL}ctrl+g    ${COLOR_RESET}  Cancel a Run
   ${GREEN_NORMAL}ctrl+f    ${COLOR_RESET}  See failed logs
   ${GREEN_NORMAL}ctrl+r    ${COLOR_RESET}  Reload
   ${GREEN_NORMAL}ctrl+t    ${COLOR_RESET}  Toggle watch mode 👀 update the list every ${UPDATE_TIME}s
-  ${GREEN_NORMAL}ctrl+x    ${COLOR_RESET}  Delete a Run
-  ${GREEN_NORMAL}ctrl+y    ${COLOR_RESET}  Copy the ID of the Run (macOS only)
+  ${GREEN_NORMAL}ctrl+x    ${COLOR_RESET}  Download attached artifacts
+  ${GREEN_NORMAL}ctrl+y    ${COLOR_RESET}  Copy URL to clipboard (macOS only)
   ${GREEN_NORMAL}shift+left${COLOR_RESET}  Switch to Pull Requests
   ${GREEN_NORMAL}esc       ${COLOR_RESET}  Quit
 EOF
@@ -842,8 +855,8 @@ fzf_workflow_run_function() {
     --bind "?:toggle-preview+change-preview:echo '$(help_workflow_run_function)'" \
     --bind "start,every(${UPDATE_TIME}):reload-sync:${GH_WORKFLOWS_COMMAND} || true" \
     --bind "ctrl-b:execute-silent:python -m webbrowser {2}" \
-    --bind "ctrl-d:become(gh run download {1} --repo ${OWNER_REPO_NAME})+reload-sync:${GH_WORKFLOWS_COMMAND} || true" \
-    --bind "ctrl-g:execute-silent(gh run cancel {1} --repo ${OWNER_REPO_NAME})+down+reload-sync:${GH_WORKFLOWS_COMMAND} || true" \
+    --bind "ctrl-d:execute-silent(gh run delete {1} --repo ${OWNER_REPO_NAME})+reload-sync:${GH_WORKFLOWS_COMMAND} || true" \
+    --bind "ctrl-g:execute-silent(gh run cancel {1} --repo ${OWNER_REPO_NAME})+reload-sync:${GH_WORKFLOWS_COMMAND} || true" \
     --bind "ctrl-r:reload-sync:${GH_WORKFLOWS_COMMAND} || true" \
     --bind "ctrl-t:transform:
       if [[ \$FZF_PROMPT == *👀* ]]; then
@@ -851,8 +864,9 @@ fzf_workflow_run_function() {
       else
         echo 'rebind(every(${UPDATE_TIME}))+change-prompt:${GREEN_NORMAL}${INITIAL_WORKFLOW_PROMPT} 👀 ${UPDATE_TIME}s > '
       fi" \
-    --bind "ctrl-x:execute-silent(gh run delete {1} --repo ${OWNER_REPO_NAME})+down+reload-sync:${GH_WORKFLOWS_COMMAND} || true" \
-    --bind "ctrl-y:execute:printf 'gh run view --log {1} --repo %s' '${OWNER_REPO_NAME}' | pbcopy" \
+    --bind "ctrl-x:become(gh run download {1} --repo ${OWNER_REPO_NAME})+reload-sync:${GH_WORKFLOWS_COMMAND} || true" \
+    --bind "ctrl-y:execute-silent:printf 'gh run view --log %s --repo %s' {1} '${OWNER_REPO_NAME}' | pbcopy" \
+    --bind "ctrl-y:+transform-footer(pbpaste)+bg-cancel+bg-transform-footer:sleep 2" \
     --expect "ctrl-f,enter,shift-left") || true
 
   printed_query="$(sed 1q <<<"$OUTPUT_SELECTION")"
@@ -913,6 +927,7 @@ ${WHITE_BOLD}Hotkeys${COLOR_RESET}
   ${GREEN_NORMAL}ctrl+f     ${COLOR_RESET}  Preview release infos
   ${GREEN_NORMAL}ctrl+r     ${COLOR_RESET}  Reload
   ${GREEN_NORMAL}ctrl+t     ${COLOR_RESET}  Toggle star
+  ${GREEN_NORMAL}ctrl+y     ${COLOR_RESET}  Copy URL to clipboard (macOS only)
   ${GREEN_NORMAL}shift+left ${COLOR_RESET}  Switch to your starred repos
   ${GREEN_NORMAL}shift+right${COLOR_RESET}  Switch to Issues
   ${GREEN_NORMAL}esc        ${COLOR_RESET}  Quit
@@ -965,6 +980,8 @@ fzf_search_function() {
     --bind $'ctrl-f:toggle-preview+change-preview([[ $(gh release list -R {1}) ]] && gh release view -R {1})' \
     --bind "ctrl-r:reload-sync:$GH_SEARCH_COMMAND --raw-field filter={q} || true" \
     --bind "ctrl-t:execute-silent(gh api /user/starred/{1} 2>/dev/null && gh api --method DELETE /user/starred/{1} || gh api --method PUT /user/starred/{1})+reload-sync:$GH_SEARCH_COMMAND --raw-field filter={q} --cache 0s || true" \
+    --bind "ctrl-y:execute-silent:printf 'https://github.com/%s' {1} | pbcopy" \
+    --bind "ctrl-y:+transform-footer(pbpaste)+bg-cancel+bg-transform-footer:sleep 2" \
     --expect "shift-left,shift-right") || true
 
   expected_key="$(sed '1d;3d' <<<"$OUTPUT_SELECTION")"
@@ -1013,6 +1030,7 @@ ${WHITE_BOLD}Hotkeys${COLOR_RESET}
   ${GREEN_NORMAL}ctrl+f     ${COLOR_RESET}  Preview release infos
   ${GREEN_NORMAL}ctrl+r     ${COLOR_RESET}  Reload
   ${GREEN_NORMAL}ctrl+t     ${COLOR_RESET}  Toggle star
+  ${GREEN_NORMAL}ctrl+y     ${COLOR_RESET}  Copy URL to clipboard (macOS only)
   ${GREEN_NORMAL}shift+right${COLOR_RESET}  Switch to Search
   ${GREEN_NORMAL}esc        ${COLOR_RESET}  Quit
 EOF
@@ -1059,6 +1077,8 @@ fzf_star_function() {
     --bind $'ctrl-f:toggle-preview+change-preview([[ $(gh release list -R {1}) ]] && gh release view -R {1})' \
     --bind "ctrl-r:reload-sync:$GH_STAR_COMMAND --raw-field USER_NAME=$USER_NAME --cache 0s" \
     --bind "ctrl-t:execute-silent(gh api user/starred/{1} 2>/dev/null && gh api --method DELETE user/starred/{1} || gh api --method PUT user/starred/{1})+reload-sync:$GH_STAR_COMMAND --raw-field USER_NAME=$USER_NAME --cache 0s" \
+    --bind "ctrl-y:execute-silent:printf 'https://github.com/%s' {1} | pbcopy" \
+    --bind "ctrl-y:+transform-footer(pbpaste)+bg-cancel+bg-transform-footer:sleep 2" \
     --expect "shift-right") || true
 
   expected_key="$(sed '1d;3d' <<<"$OUTPUT_SELECTION")"
