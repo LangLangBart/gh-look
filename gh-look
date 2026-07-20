@@ -196,6 +196,7 @@ ${WHITE_BOLD}Hotkeys${COLOR_RESET}
   ${GREEN_NORMAL}ctrl+e     ${COLOR_RESET}  Edit an Issue
   ${GREEN_NORMAL}ctrl+f     ${COLOR_RESET}  Fuzzy search
   ${GREEN_NORMAL}ctrl+g     ${COLOR_RESET}  Close/Reopen Issue after confirmation
+  ${GREEN_NORMAL}ctrl+j     ${COLOR_RESET}  Recent activity (30d)
   ${GREEN_NORMAL}ctrl+n     ${COLOR_RESET}  New Issue
   ${GREEN_NORMAL}ctrl+o     ${COLOR_RESET}  OPEN Issues only
   ${GREEN_NORMAL}ctrl+p     ${COLOR_RESET}  Put "involves:@me" into the search
@@ -259,6 +260,7 @@ fzf_issue_function() {
     --bind "ctrl-a:rebind(change)+change-prompt(Issues ◉ [$OWNER_REPO_NAME] > )+disable-search+execute-silent(echo A >$SCRATCH_FILE)+reload-sync:$GH_ISSUE_COMMAND --cache $CACHE_TIME --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME \"{q} || true" \
     --bind "ctrl-b:execute-silent(gh issue view {2} --web --repo $OWNER_REPO_NAME)" \
     --bind "ctrl-f:unbind(change)+enable-search+clear-query+change-prompt(${RED_NORMAL}FUZZY SEARCH [$OWNER_REPO_NAME] > )" \
+    --bind $'ctrl-j:transform-query:printf "%supdated:>%s sort:updated-desc" "${FZF_QUERY}" $(date -v-1m +%Y-%m-%d)' \
     --bind "ctrl-o:rebind(change)+change-prompt(${GREEN_NORMAL}OPEN Issues ◉ [$OWNER_REPO_NAME] > )+disable-search+execute-silent(echo B >$SCRATCH_FILE)+reload-sync:$GH_ISSUE_COMMAND --cache $CACHE_TIME --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME state:open \"{q} || true" \
     --bind "ctrl-p:put(involves:@me)" \
     --bind "ctrl-r:reload-sync:(grep -q A <$SCRATCH_FILE && $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME \"{q} || $GH_ISSUE_COMMAND --raw-field filter=\"$SORTING_ORDER type:issue repo:$OWNER_REPO_NAME state:open \"{q}) || true" \
@@ -527,6 +529,7 @@ ${WHITE_BOLD}Hotkeys${COLOR_RESET}
   ${GREEN_NORMAL}ctrl+e     ${COLOR_RESET}  Edit a Pull Request
   ${GREEN_NORMAL}ctrl+f     ${COLOR_RESET}  Fuzzy search
   ${GREEN_NORMAL}ctrl+g     ${COLOR_RESET}  Merge a Pull Request
+  ${GREEN_NORMAL}ctrl+j     ${COLOR_RESET}  Recent activity (30d)
   ${GREEN_NORMAL}ctrl+o     ${COLOR_RESET}  OPEN Pull Requests only
   ${GREEN_NORMAL}ctrl+p     ${COLOR_RESET}  Put "involves:@me" into the search
   ${GREEN_NORMAL}ctrl+r     ${COLOR_RESET}  Reload
@@ -607,6 +610,7 @@ fzf_pr_function() {
     --bind "ctrl-a:rebind(change)+change-prompt(Pull Requests  [$OWNER_REPO_NAME] > )+disable-search+execute-silent(echo A >$SCRATCH_FILE)+reload-sync:$GH_PR_COMMAND --cache $CACHE_TIME --raw-field filter=\"$SORTING_ORDER type:pr repo:$OWNER_REPO_NAME \"{q} || true" \
     --bind "ctrl-b:execute-silent(gh pr view {2} --web --repo $OWNER_REPO_NAME)" \
     --bind "ctrl-f:unbind(change)+enable-search+clear-query+change-prompt(${RED_NORMAL}FUZZY SEARCH [$OWNER_REPO_NAME] > )" \
+    --bind $'ctrl-j:transform-query:printf "%supdated:>%s sort:updated-desc" "${FZF_QUERY}" $(date -v-1m +%Y-%m-%d)' \
     --bind "ctrl-d:toggle-preview+change-preview(gh pr diff {2} --repo $OWNER_REPO_NAME"$' | if type -p delta >/dev/null; then delta --width ${FZF_PREVIEW_COLUMNS:-$COLUMNS}; else cat; fi)' \
     --bind "ctrl-o:rebind(change)+change-prompt(${GREEN_NORMAL}OPEN Pull Requests  [$OWNER_REPO_NAME] > )+disable-search+execute-silent(echo B >$SCRATCH_FILE)+reload-sync:$GH_PR_COMMAND --cache $CACHE_TIME --raw-field filter=\"$SORTING_ORDER type:pr repo:$OWNER_REPO_NAME state:open \"{q} || true" \
     --bind "ctrl-p:put(involves:@me)" \

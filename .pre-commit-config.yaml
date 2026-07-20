@@ -19,7 +19,7 @@ repos:
         name: markdown link check
         args: [--quiet, --alive, '200,429']
   - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.49.0
+    rev: v0.49.1
     hooks:
       - id: markdownlint
         # Disable line-length/no-inline-html
@@ -64,7 +64,7 @@ repos:
         args: [--ignore, body-is-missing, --msg-filename]
         stages: [commit-msg]
   - repo: https://github.com/commitizen-tools/commitizen
-    rev: v4.16.4
+    rev: v4.16.5
     hooks:
       - id: commitizen
         name: check commit message structure
